@@ -19,6 +19,15 @@ export default function PortalLogin() {
 
   const startSession = (plan = 'Demo') => {
     localStorage.setItem('rewarm_session', JSON.stringify({ plan }));
+    // Persist plan to the profile so Settings → Plan pre-populates correctly.
+    // Only for paid tiers — demo sessions don't touch stored profile state.
+    if (plan !== 'Demo') {
+      fetch('/api/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan_name: plan }),
+      }).catch(() => {});
+    }
     router.push('/portal/dashboard');
   };
 

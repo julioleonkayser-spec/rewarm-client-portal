@@ -134,8 +134,17 @@ function PlanSection({ profile, onSaved }) {
         <div className="rounded-xl border border-stone-100 dark:border-stone-800 p-4 text-xs text-stone-400">Loading usage…</div>
       ) : usage ? (
         <div className="rounded-xl border border-stone-200 dark:border-stone-700 p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-stone-700 dark:text-stone-300">Usage this billing cycle</span>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-stone-700 dark:text-stone-300">Usage this billing cycle</span>
+              <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
+                usage.usage_method === 'date_added'
+                  ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
+                  : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
+              }`}>
+                {usage.usage_method === 'date_added' ? 'Exact' : 'Approximate'}
+              </span>
+            </div>
             {wc && (
               <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${wc.badge}`}>
                 {wl === 'at_limit' ? 'LIMIT REACHED' : wl === 'warning_80' ? '80% USED' : '50% USED'}
@@ -167,7 +176,7 @@ function PlanSection({ profile, onSaved }) {
 
           {usage.usage_method === 'total_rows' && (
             <p className="text-[10px] text-stone-400 italic">
-              No <code>date_added</code> column detected — usage shown as total row count. Add a <code>date_added</code> column for accurate per-cycle tracking.
+              Showing total rows — no calls completed yet. Once the dialer runs, <code>date_added</code> is set automatically and usage switches to exact cycle-based counting.
             </p>
           )}
         </div>

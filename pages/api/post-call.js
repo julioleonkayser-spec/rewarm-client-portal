@@ -52,13 +52,26 @@ export default async function handler(req, res) {
       data.push({ range: SHEET_TAB + '!' + colLetter(colIdx) + sheetsRow, values: [[value]] });
     }
     const recordingUrl = call.recording_url || '';
+    let newColsAdded = 0;
     if (recordingUrl) {
       let recColIdx = headers.indexOf('recording');
       if (recColIdx === -1) {
-        recColIdx = headers.length;
+        recColIdx = headers.length + newColsAdded;
+        newColsAdded++;
         data.push({ range: SHEET_TAB + '!' + colLetter(recColIdx) + '1', values: [['recording']] });
       }
       data.push({ range: SHEET_TAB + '!' + colLetter(recColIdx) + sheetsRow, values: [['=HYPERLINK("' + recordingUrl + '","Play Recording")']] });
+    }
+    // Set date_added on the first completed call for this lead.
+    // Creates the column automatically if absent — enables accurate per-cycle usage counts.
+    let dateAddedColIdx = headers.indexOf('date_added');
+    if (dateAddedColIdx === -1) {
+      dateAddedColIdx = headers.length + newColsAdded;
+      data.push({ range: SHEET_TAB + '!' + colLetter(dateAddedColIdx) + '1', values: [['date_added']] });
+    }
+    const existingDateAdded = ((rows[sheetsRow - 1] || [])[dateAddedColIdx] || '');
+    if (!existingDateAdded) {
+      data.push({ range: SHEET_TAB + '!' + colLetter(dateAddedColIdx) + sheetsRow, values: [[today]] });
     }
     if (data.length) await batchWrite(data, sheetId);
     return res.status(200).json({ status: 'updated', row: sheetsRow, call_status: callStatus });

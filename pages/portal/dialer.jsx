@@ -42,7 +42,7 @@ const STATUS_CONFIG = {
 const RESUME_BLOCKED_MESSAGES = {
   paused_by_admin: 'This pause was set by an administrator. Contact support to resume.',
   paused_by_limit: 'Monthly lead cap reached. Contact support or upgrade your plan to continue.',
-  paused_no_leads: 'No uncalled leads in your Sheet. Add new leads to continue.',
+  paused_no_leads: 'No uncalled leads in your Sheet. Add new leads, then click Refresh — the dialer will unlock automatically if new leads are found.',
 };
 
 const WARN_BAR = {
@@ -112,6 +112,24 @@ export default function DialerControl() {
     setBusy(false);
   };
 
+  // When paused_no_leads, Refresh first checks for new leads server-side before
+  // re-fetching state. Transitions to paused_by_client automatically if found.
+  const refresh = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      if (dialerState?.status === 'paused_no_leads') {
+        await fetch('/api/dialer-status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'check_leads' }),
+        });
+      }
+      await load();
+    } catch (e) { setError(e.message); }
+    setBusy(false);
+  };
+
   const cfg      = STATUS_CONFIG[dialerState?.status] || STATUS_CONFIG.paused_by_client;
   const isActive = dialerState?.status === 'active';
   const blockMsg = RESUME_BLOCKED_MESSAGES[dialerState?.status];
@@ -136,7 +154,7 @@ export default function DialerControl() {
             <p className="text-xs text-stone-400 mt-0.5">Manage your AI calling agent</p>
           </div>
           <button
-            onClick={load}
+            onClick={refresh}
             disabled={busy}
             className="flex items-center gap-2 px-3 py-2 text-xs font-medium bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-400 rounded-xl transition-colors disabled:opacity-50"
           >
