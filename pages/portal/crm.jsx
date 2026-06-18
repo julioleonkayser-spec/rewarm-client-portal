@@ -1,10 +1,19 @@
-import { useState } from 'react';
-import { leads as initialLeads, STAGES, STAGE_CONFIG } from '../../lib/portal/demo-data';
+import { useState, useEffect, useMemo } from 'react';
 import PortalLayout from '../../components/portal/PortalLayout';
 import PageHeader from '../../components/portal/PageHeader';
 
+const STAGES = ['new', 'contacted', 'warm', 'qualified', 'booked'];
+
+const STAGE_CONFIG = {
+  new:       { label: 'New',       bg: 'bg-slate-100',   text: 'text-slate-700',   dot: 'bg-slate-400' },
+  contacted: { label: 'Contacted', bg: 'bg-sky-50',      text: 'text-sky-700',     dot: 'bg-sky-400' },
+  warm:      { label: 'Warm',      bg: 'bg-amber-50',    text: 'text-amber-700',   dot: 'bg-amber-400' },
+  qualified: { label: 'Qualified', bg: 'bg-orange-50',   text: 'text-orange-700',  dot: 'bg-orange-500' },
+  booked:    { label: 'Booked',    bg: 'bg-emerald-50',  text: 'text-emerald-700', dot: 'bg-emerald-500' },
+};
+
 function StagePill({ stage }) {
-  const cfg = STAGE_CONFIG[stage];
+  const cfg = STAGE_CONFIG[stage] || STAGE_CONFIG.new;
   return (
     <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${cfg.bg} ${cfg.text}`}>
       <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
@@ -13,23 +22,14 @@ function StagePill({ stage }) {
   );
 }
 
-function ScoreBadge({ score }) {
-  const color = score >= 80 ? 'text-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 dark:text-emerald-400'
-    : score >= 60 ? 'text-amber-700 bg-amber-50 dark:bg-amber-900/30 dark:text-amber-400'
-    : 'text-stone-600 bg-stone-100 dark:bg-stone-800 dark:text-stone-400';
-  return (
-    <span className={`text-xs font-bold px-2 py-0.5 rounded-md ${color}`}>{score}</span>
-  );
-}
-
-function LastContact({ lead }) {
-  if (!lead.lastContact) {
+function LastCalled({ lead }) {
+  if (!lead.lastCalled) {
     return <span className="text-xs text-stone-300 dark:text-stone-600">Never</span>;
   }
-  const days = Math.floor((Date.now() - new Date(lead.lastContact).getTime()) / 86400000);
+  const days = Math.floor((Date.now() - new Date(lead.lastCalled).getTime()) / 86400000);
   const overdue = days >= 7 && ['warm', 'qualified', 'contacted'].includes(lead.stage);
   const label = days === 0 ? 'Today' : days === 1 ? 'Yesterday'
-    : new Date(lead.lastContact).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    : new Date(lead.lastCalled).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   return (
     <span className={`inline-flex items-center gap-1.5 text-xs ${overdue ? 'text-orange-600 dark:text-orange-400 font-medium' : 'text-stone-500 dark:text-stone-400'}`}>
       {overdue && <span className="w-1.5 h-1.5 rounded-full bg-orange-400" title="Overdue for follow-up" />}
@@ -39,10 +39,10 @@ function LastContact({ lead }) {
 }
 
 function Avatar({ name }) {
-  const initials = name.split(' ').map(n => n[0]).join('').slice(0, 2);
+  const initials = name.split(' ').map(n => n[0]).join('').slice(0, 2) || '?';
   const colors = ['bg-amber-100 text-amber-700', 'bg-sky-100 text-sky-700', 'bg-emerald-100 text-emerald-700',
     'bg-violet-100 text-violet-700', 'bg-orange-100 text-orange-700'];
-  const color = colors[name.charCodeAt(0) % colors.length];
+  const color = colors[(name.charCodeAt(0) || 0) % colors.length];
   return (
     <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold ${color}`}>
       {initials}
@@ -50,15 +50,15 @@ function Avatar({ name }) {
   );
 }
 
-function NotesModal({ lead, onSave, onClose }) {
-  const [notes, setNotes] = useState(lead.notes);
+function NotesModal({ lead, onSave, onClose, saving }) {
+  const [notes, setNotes] = useState(lead.notes || '');
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={onClose}>
       <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-2xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-1">
           <div>
             <h2 className="text-base font-semibold text-stone-900 dark:text-stone-100">{lead.name}</h2>
-            <p className="text-xs text-stone-500 mt-0.5">{lead.neighborhood} · {lead.priceRange}</p>
+            <p className="text-xs text-stone-500 mt-0.5">{lead.phone}</p>
           </div>
           <button onClick={onClose} className="text-stone-400 hover:text-stone-600 dark:hover:text-stone-300 p-1">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
@@ -66,6 +66,10 @@ function NotesModal({ lead, onSave, onClose }) {
             </svg>
           </button>
         </div>
+        {lead.originalInterest && (
+          <p className="text-xs text-stone-500 dark:text-stone-400 mb-4">{lead.originalInterest}</p>
+        )}
+        <label className="block text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wide mb-1.5">Notes</label>
         <textarea
           value={notes}
           onChange={e => setNotes(e.target.value)}
@@ -73,9 +77,14 @@ function NotesModal({ lead, onSave, onClose }) {
           placeholder="Add notes about this lead…"
           className="w-full px-4 py-3 text-sm border border-stone-200 dark:border-stone-700 rounded-xl bg-stone-50 dark:bg-stone-800 text-stone-800 dark:text-stone-200 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none"
         />
+        <p className="mt-1.5 text-xs text-stone-400">Saved directly to your Google Sheet.</p>
         <div className="flex items-center gap-3 mt-4">
-          <button onClick={() => { onSave(notes); onClose(); }} className="flex-1 py-2.5 bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold rounded-xl transition-colors">
-            Save Notes
+          <button
+            disabled={saving}
+            onClick={() => onSave(notes)}
+            className="flex-1 py-2.5 bg-amber-600 hover:bg-amber-700 disabled:opacity-60 text-white text-sm font-semibold rounded-xl transition-colors"
+          >
+            {saving ? 'Saving…' : 'Save Notes'}
           </button>
           <button onClick={onClose} className="px-4 py-2.5 text-sm font-medium text-stone-600 hover:text-stone-800 dark:text-stone-400 dark:hover:text-stone-200 rounded-xl transition-colors">
             Cancel
@@ -86,119 +95,110 @@ function NotesModal({ lead, onSave, onClose }) {
   );
 }
 
-function AddLeadModal({ onAdd, onClose }) {
-  const [form, setForm] = useState({ name: '', phone: '', type: 'buyer', neighborhood: '', priceRange: '', stage: 'new' });
-  const upd = (k, v) => setForm(f => ({ ...f, [k]: v }));
-
-  const handleAdd = () => {
-    if (!form.name.trim()) return;
-    onAdd({
-      ...form,
-      id: Date.now(),
-      email: '',
-      score: 50,
-      lastContact: null,
-      addedDate: new Date().toISOString().split('T')[0],
-      source: 'Manual',
-      notes: '',
-    });
-    onClose();
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-2xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
-        <h2 className="text-base font-semibold text-stone-900 dark:text-stone-100 mb-5">Add Lead</h2>
-        <div className="space-y-3">
-          {[
-            { label: 'Full Name *', key: 'name', type: 'text', placeholder: 'e.g. Marcus Webb' },
-            { label: 'Phone', key: 'phone', type: 'tel', placeholder: '(512) 000-0000' },
-            { label: 'Neighborhood', key: 'neighborhood', type: 'text', placeholder: 'e.g. Austin, TX' },
-            { label: 'Price Range', key: 'priceRange', type: 'text', placeholder: 'e.g. $500K–$700K' },
-          ].map(({ label, key, type, placeholder }) => (
-            <div key={key}>
-              <label className="block text-xs font-medium text-stone-600 dark:text-stone-400 mb-1">{label}</label>
-              <input
-                type={type}
-                placeholder={placeholder}
-                value={form[key]}
-                onChange={e => upd(key, e.target.value)}
-                className="w-full px-3 py-2.5 text-sm border border-stone-200 dark:border-stone-700 rounded-xl bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-500"
-              />
-            </div>
-          ))}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-stone-600 dark:text-stone-400 mb-1">Type</label>
-              <select value={form.type} onChange={e => upd('type', e.target.value)} className="w-full px-3 py-2.5 text-sm border border-stone-200 dark:border-stone-700 rounded-xl bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-amber-500">
-                <option value="buyer">Buyer</option>
-                <option value="seller">Seller</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-stone-600 dark:text-stone-400 mb-1">Stage</label>
-              <select value={form.stage} onChange={e => upd('stage', e.target.value)} className="w-full px-3 py-2.5 text-sm border border-stone-200 dark:border-stone-700 rounded-xl bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-amber-500">
-                {STAGES.map(s => <option key={s} value={s}>{STAGE_CONFIG[s].label}</option>)}
-              </select>
-            </div>
-          </div>
-        </div>
-        <div className="flex gap-3 mt-5">
-          <button onClick={handleAdd} className="flex-1 py-2.5 bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold rounded-xl transition-colors">
-            Add Lead
-          </button>
-          <button onClick={onClose} className="px-4 py-2.5 text-sm font-medium text-stone-600 dark:text-stone-400 rounded-xl transition-colors hover:text-stone-800">
-            Cancel
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default function CRM() {
-  const [leads, setLeads] = useState(initialLeads);
+  const [leads, setLeads] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [activeStage, setActiveStage] = useState('all');
   const [search, setSearch] = useState('');
   const [editingLead, setEditingLead] = useState(null);
-  const [showAdd, setShowAdd] = useState(false);
-  const [sortKey, setSortKey] = useState('score');
+  const [saving, setSaving] = useState(false);
+  const [sortKey, setSortKey] = useState('lastCalled');
 
-  const stageCounts = STAGES.reduce((acc, s) => {
+  const fetchLeads = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/leads');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load leads');
+      setLeads(data.leads || []);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchLeads(); }, []);
+
+  const stageCounts = useMemo(() => STAGES.reduce((acc, s) => {
     acc[s] = leads.filter(l => l.stage === s).length;
     return acc;
-  }, {});
+  }, {}), [leads]);
 
-  const filtered = leads
+  const filtered = useMemo(() => leads
     .filter(l => activeStage === 'all' || l.stage === activeStage)
-    .filter(l => !search || l.name.toLowerCase().includes(search.toLowerCase()) || l.neighborhood.toLowerCase().includes(search.toLowerCase()))
-    .sort((a, b) => sortKey === 'score' ? b.score - a.score : a.name.localeCompare(b.name));
+    .filter(l => !search ||
+      l.name.toLowerCase().includes(search.toLowerCase()) ||
+      (l.originalInterest || '').toLowerCase().includes(search.toLowerCase()) ||
+      (l.phone || '').includes(search))
+    .sort((a, b) => {
+      if (sortKey === 'name') return a.name.localeCompare(b.name);
+      // lastCalled: most recently called first, never-called last
+      if (!a.lastCalled && !b.lastCalled) return 0;
+      if (!a.lastCalled) return 1;
+      if (!b.lastCalled) return -1;
+      return new Date(b.lastCalled) - new Date(a.lastCalled);
+    }), [leads, activeStage, search, sortKey]);
 
-  const saveNote = (id, notes) => setLeads(ls => ls.map(l => l.id === id ? { ...l, notes } : l));
-  const updateStage = (id, stage) => setLeads(ls => ls.map(l => l.id === id ? { ...l, stage } : l));
-  const addLead = (lead) => setLeads(ls => [lead, ...ls]);
+  const saveNote = async (notes) => {
+    if (!editingLead) return;
+    setSaving(true);
+    try {
+      const res = await fetch('/api/leads', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: editingLead.phone, notes }),
+      });
+      if (!res.ok) throw new Error('Failed to save');
+      setLeads(ls => ls.map(l => l.phone === editingLead.phone ? { ...l, notes } : l));
+      setEditingLead(null);
+    } catch (err) {
+      alert('Could not save notes: ' + err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <PortalLayout title="Pipeline">
       {editingLead && (
         <NotesModal
           lead={editingLead}
-          onSave={(notes) => saveNote(editingLead.id, notes)}
+          saving={saving}
+          onSave={saveNote}
           onClose={() => setEditingLead(null)}
         />
       )}
-      {showAdd && <AddLeadModal onAdd={addLead} onClose={() => setShowAdd(false)} />}
 
       <div className="max-w-6xl mx-auto space-y-6">
 
         <PageHeader
           eyebrow="Pipeline"
           title="Lead pipeline"
-          subtitle="Every cold lead, scored and staged. Filter by stage, move a lead with its pill, and log notes as conversations happen."
-        />
+          subtitle="Live from your Google Sheet — every lead, its call status, and notes from real calls."
+        >
+          <button
+            onClick={fetchLeads}
+            className="inline-flex items-center gap-2 py-2.5 px-4 bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-300 text-sm font-semibold rounded-xl transition-colors"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+              <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+              <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+            </svg>
+            Refresh
+          </button>
+        </PageHeader>
+
+        {error && (
+          <div className="p-4 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/30 text-sm text-red-700 dark:text-red-400">
+            Couldn't load your Sheet: {error}. Check your Google Sheets connection in Settings.
+          </div>
+        )}
 
         {/* Stage summary */}
-        <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+        <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
           {STAGES.map(stage => {
             const cfg = STAGE_CONFIG[stage];
             return (
@@ -212,7 +212,7 @@ export default function CRM() {
                 }`}
               >
                 <p className={`text-xl font-bold ${activeStage === stage ? cfg.text : 'text-stone-800 dark:text-stone-200'}`}>
-                  {stageCounts[stage]}
+                  {stageCounts[stage] || 0}
                 </p>
                 <p className="text-xs font-medium text-stone-500 dark:text-stone-400 mt-0.5">{cfg.label}</p>
               </button>
@@ -228,7 +228,7 @@ export default function CRM() {
             </svg>
             <input
               type="text"
-              placeholder="Search by name or location…"
+              placeholder="Search by name, phone, or interest…"
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="w-full pl-9 pr-4 py-2 text-sm bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-lg text-stone-800 dark:text-stone-200 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-500"
@@ -240,7 +240,7 @@ export default function CRM() {
             onChange={e => setSortKey(e.target.value)}
             className="py-2 px-3 text-sm bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-lg text-stone-700 dark:text-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-500"
           >
-            <option value="score">Sort: Score</option>
+            <option value="lastCalled">Sort: Most recent call</option>
             <option value="name">Sort: Name</option>
           </select>
 
@@ -249,16 +249,6 @@ export default function CRM() {
               Clear filter
             </button>
           )}
-
-          <button
-            onClick={() => setShowAdd(true)}
-            className="flex items-center gap-1.5 py-2 px-4 bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold rounded-lg transition-colors"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-            </svg>
-            Add Lead
-          </button>
         </div>
 
         {/* Table */}
@@ -268,61 +258,56 @@ export default function CRM() {
               <thead>
                 <tr className="border-b border-stone-100 dark:border-stone-800">
                   <th className="text-left py-3 px-4 text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wide">Name</th>
-                  <th className="text-left py-3 px-4 text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wide hidden sm:table-cell">Type</th>
                   <th className="text-left py-3 px-4 text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wide">Stage</th>
-                  <th className="text-left py-3 px-4 text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wide">Score</th>
-                  <th className="text-left py-3 px-4 text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wide hidden lg:table-cell">Price Range</th>
-                  <th className="text-left py-3 px-4 text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wide hidden md:table-cell">Last Contact</th>
-                  <th className="text-right py-3 px-4 text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wide">Actions</th>
+                  <th className="text-left py-3 px-4 text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wide hidden lg:table-cell">Interest</th>
+                  <th className="text-left py-3 px-4 text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wide hidden sm:table-cell">Source</th>
+                  <th className="text-left py-3 px-4 text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wide hidden md:table-cell">Last Called</th>
+                  <th className="text-right py-3 px-4 text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wide">Notes</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-50 dark:divide-stone-800/50">
-                {filtered.length === 0 ? (
+                {loading ? (
                   <tr>
-                    <td colSpan={7} className="py-16 text-center text-sm text-stone-400">
-                      No leads match your current filters.
+                    <td colSpan={6} className="py-16 text-center text-sm text-stone-400">
+                      Loading your leads…
+                    </td>
+                  </tr>
+                ) : filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-16 text-center text-sm text-stone-400">
+                      {leads.length === 0
+                        ? 'No leads in your Sheet yet.'
+                        : 'No leads match your current filters.'}
                     </td>
                   </tr>
                 ) : filtered.map(lead => (
-                  <tr key={lead.id} className="hover:bg-stone-50/60 dark:hover:bg-stone-800/30 transition-colors group">
+                  <tr key={lead.phone} className="hover:bg-stone-50/60 dark:hover:bg-stone-800/30 transition-colors group">
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-3">
                         <Avatar name={lead.name} />
                         <div className="min-w-0">
                           <p className="text-sm font-semibold text-stone-800 dark:text-stone-200 truncate">{lead.name}</p>
-                          <p className="text-xs text-stone-400 truncate">{lead.neighborhood}</p>
+                          <p className="text-xs text-stone-400 truncate">{lead.phone}</p>
                         </div>
                       </div>
                     </td>
-                    <td className="py-3 px-4 hidden sm:table-cell">
-                      <span className="text-xs text-stone-600 dark:text-stone-400 capitalize">{lead.type}</span>
-                    </td>
                     <td className="py-3 px-4">
-                      <div className="relative inline-block">
-                        <StagePill stage={lead.stage} />
-                        <select
-                          value={lead.stage}
-                          onChange={e => updateStage(lead.id, e.target.value)}
-                          className="absolute inset-0 w-full opacity-0 cursor-pointer"
-                          aria-label="Change stage"
-                        >
-                          {STAGES.map(s => (
-                            <option key={s} value={s}>{STAGE_CONFIG[s].label}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </td>
-                    <td className="py-3 px-4">
-                      <ScoreBadge score={lead.score} />
+                      <StagePill stage={lead.stage} />
                     </td>
                     <td className="py-3 px-4 hidden lg:table-cell">
-                      <span className="text-xs text-stone-600 dark:text-stone-400">{lead.priceRange}</span>
+                      <span className="text-xs text-stone-600 dark:text-stone-400 truncate block max-w-xs">{lead.originalInterest || '—'}</span>
+                    </td>
+                    <td className="py-3 px-4 hidden sm:table-cell">
+                      <span className="text-xs text-stone-600 dark:text-stone-400">{lead.leadSource || '—'}</span>
                     </td>
                     <td className="py-3 px-4 hidden md:table-cell">
-                      <LastContact lead={lead} />
+                      <LastCalled lead={lead} />
                     </td>
                     <td className="py-3 px-4">
-                      <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center justify-end gap-1.5">
+                        {lead.notes && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-400" title="Has notes" />
+                        )}
                         <button
                           onClick={() => setEditingLead(lead)}
                           className="p-1.5 text-stone-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg transition-colors"
@@ -333,9 +318,6 @@ export default function CRM() {
                             <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
                           </svg>
                         </button>
-                        {lead.notes && (
-                          <span className="w-1.5 h-1.5 rounded-full bg-amber-400" title="Has notes" />
-                        )}
                       </div>
                     </td>
                   </tr>
@@ -351,6 +333,11 @@ export default function CRM() {
             )}
           </div>
         </div>
+
+        <p className="text-xs text-stone-400 text-center">
+          New leads come from your Google Sheet — paste new rows there, or use the CSV importer in{' '}
+          <a href="/portal/onboarding" className="text-amber-600 hover:underline">Setup</a>.
+        </p>
 
       </div>
     </PortalLayout>

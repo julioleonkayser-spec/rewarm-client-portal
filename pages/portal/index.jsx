@@ -58,14 +58,14 @@ export default function PortalLogin() {
             Every cold lead is a warm conversation waiting.
           </blockquote>
           <p className="text-stone-400 text-base leading-relaxed max-w-xs">
-            AI-powered call scripts, SMS prompts, and a simple pipeline to turn your dormant database into booked appointments.
+            A working AI voice agent that calls your dormant leads, qualifies them by name and interest, and books appointments — straight from your Google Sheet.
           </p>
 
           <div className="mt-10 space-y-3">
             {[
-              '18 ready-to-use call and SMS scripts',
-              'Mini CRM with lead scoring',
-              'Results dashboard and pipeline tracking',
+              'AI voice agent that calls and qualifies leads',
+              'Personalized to each lead from your Google Sheet',
+              'Pipeline and results dashboard, updated live',
             ].map((item) => (
               <div key={item} className="flex items-center gap-3">
                 <div className="w-5 h-5 rounded-full bg-amber-500/20 flex items-center justify-center flex-shrink-0">
@@ -80,18 +80,9 @@ export default function PortalLogin() {
         </div>
 
         <div className="relative z-10 border-t border-stone-800 pt-8">
-          <div className="grid grid-cols-3 gap-5">
-            {[
-              { value: '200+', label: 'Agents activated' },
-              { value: '$2.4M', label: 'Pipeline tracked' },
-              { value: '34%', label: 'Contact-to-appt' },
-            ].map((stat) => (
-              <div key={stat.label}>
-                <p className="text-xl font-bold text-white tracking-tight">{stat.value}</p>
-                <p className="text-xs text-stone-500 mt-0.5">{stat.label}</p>
-              </div>
-            ))}
-          </div>
+          <p className="text-xs text-stone-500 leading-relaxed">
+            Bring your own Retell AI and Anthropic API keys — full control, no markup, no subscription.
+          </p>
         </div>
       </div>
 
@@ -181,14 +172,14 @@ export default function PortalLogin() {
               <div>
                 <p className="text-xs font-semibold text-amber-800 mb-0.5">Gumroad buyers</p>
                 <p className="text-xs text-amber-700 leading-relaxed">
-                  Your access key was sent in your Gumroad receipt email. Webhook auto-provisioning can be enabled in Settings → Integration.
+                  Your access key was sent in your Gumroad receipt email.
                 </p>
               </div>
             </div>
           </div>
 
           <p className="mt-8 text-center text-xs text-stone-400">
-            Powered by <span className="font-semibold text-stone-600">ReWarm</span> · Built for solo agents
+            Powered by <span className="font-semibold text-stone-600">ReWarm</span> · The AI calling system for real estate agents
           </p>
         </div>
       </div>

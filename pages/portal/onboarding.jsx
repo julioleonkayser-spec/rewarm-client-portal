@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useRouter } from 'next/router';
-import { agentProfile, ONBOARDING_CHECKLIST, leads } from '../../lib/portal/demo-data';
+import { agentProfile, ONBOARDING_CHECKLIST } from '../../lib/portal/demo-data';
 import PortalLayout from '../../components/portal/PortalLayout';
 
 const STEPS = [
@@ -10,10 +10,10 @@ const STEPS = [
   { id: 4, title: "You're ready", subtitle: 'Time to start reactivating',         time: 'Go' },
 ];
 
-const DEMO_CSV = `name,phone,type,neighborhood,priceRange
-Marcus Webb,(512) 441-7823,buyer,Round Rock,$600K-$800K
-Jennifer Rodriguez,(512) 334-9021,seller,Cedar Park,$480K-$550K
-David Kim,(512) 709-4512,buyer,Tarrytown,$900K-$1.2M`;
+const DEMO_CSV = `first_name,last_name,phone_number,lead_source,original_interest,agent_name,transfer_number
+Marcus,Webb,(512) 441-7823,Database,3BR home in Round Rock under $800K,Sarah Chen,(512) 555-0100
+Jennifer,Rodriguez,(512) 334-9021,Database,Selling in Cedar Park - upsizing,Sarah Chen,(512) 555-0100
+David,Kim,(512) 709-4512,Referral,Relocating from SF - cash buyer,Sarah Chen,(512) 555-0100`;
 
 export default function Onboarding() {
   const router = useRouter();
@@ -27,6 +27,7 @@ export default function Onboarding() {
     specialties: agentProfile.specialties.join(', '),
   });
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const toggleCheck = (id) => {
     setChecklist(list => list.map(item => item.id === id ? { ...item, done: !item.done } : item));
@@ -34,9 +35,25 @@ export default function Onboarding() {
 
   const progress = Math.round((step - 1) / (STEPS.length - 1) * 100);
 
-  const handleSaveMarket = () => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+  const handleSaveMarket = async () => {
+    setSaving(true);
+    try {
+      await fetch('/api/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          market: market.city,
+          priceRange: market.priceRange,
+          specialties: market.specialties,
+        }),
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch {
+      // Stay silent in the UI here; the Settings page surfaces save errors explicitly.
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -133,7 +150,7 @@ export default function Onboarding() {
 
                 <div className="mt-6 p-4 bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/30 rounded-xl">
                   <p className="text-xs text-amber-800 dark:text-amber-400 leading-relaxed">
-                    <span className="font-semibold">Tip:</span> Agents who complete all 5 steps in their first week see 3× more appointments in the first 30 days.
+                    <span className="font-semibold">Tip:</span> Agents who finish setup in their first week see more booked appointments in the first 30 days.
                   </p>
                 </div>
               </div>
@@ -144,7 +161,7 @@ export default function Onboarding() {
               <div>
                 <h1 className="text-xl font-bold text-stone-900 dark:text-stone-100 tracking-tight mb-1">Import your leads</h1>
                 <p className="text-sm text-stone-500 dark:text-stone-400 mb-6 leading-relaxed">
-                  You currently have <span className="font-semibold text-stone-700 dark:text-stone-300">{leads.length} demo leads</span> loaded. Paste your own CSV data below to import real leads.
+                  Your leads live in your Google Sheet — that's the single source of truth your calling agent reads from. Paste new rows below to add them, or add them directly in the Sheet.
                 </p>
 
                 <div className="space-y-4">
@@ -157,30 +174,7 @@ export default function Onboarding() {
                       placeholder={DEMO_CSV}
                       className="w-full px-4 py-3 text-sm font-mono border border-stone-200 dark:border-stone-700 rounded-xl bg-stone-50 dark:bg-stone-800 text-stone-800 dark:text-stone-200 placeholder-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none"
                     />
-                    <p className="mt-1.5 text-xs text-stone-400">Required columns: name, phone, type (buyer/seller), neighborhood, priceRange</p>
-                  </div>
-
-                  <div className="relative flex items-center gap-3">
-                    <div className="flex-1 h-px bg-stone-200 dark:bg-stone-700" />
-                    <span className="text-xs text-stone-400 font-medium">or connect</span>
-                    <div className="flex-1 h-px bg-stone-200 dark:bg-stone-700" />
-                  </div>
-
-                  <div className="grid sm:grid-cols-2 gap-3">
-                    {[
-                      { name: 'Follow Up Boss', status: 'Available via Zapier', icon: '↗' },
-                      { name: 'KvCORE', status: 'Available via Zapier', icon: '↗' },
-                      { name: 'Sierra Interactive', status: 'Available via Zapier', icon: '↗' },
-                      { name: 'Custom CRM', status: 'CSV export supported', icon: '↗' },
-                    ].map(crm => (
-                      <div key={crm.name} className="flex items-center justify-between p-3.5 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800">
-                        <div>
-                          <p className="text-sm font-medium text-stone-800 dark:text-stone-200">{crm.name}</p>
-                          <p className="text-xs text-stone-400 mt-0.5">{crm.status}</p>
-                        </div>
-                        <span className="text-stone-400 text-sm">{crm.icon}</span>
-                      </div>
-                    ))}
+                    <p className="mt-1.5 text-xs text-stone-400">Required columns: first_name, last_name, phone_number, lead_source, original_interest, agent_name, transfer_number</p>
                   </div>
                 </div>
               </div>
@@ -236,13 +230,14 @@ export default function Onboarding() {
 
                   <button
                     onClick={handleSaveMarket}
-                    className={`w-full py-3 text-sm font-semibold rounded-xl transition-all ${
+                    disabled={saving}
+                    className={`w-full py-3 text-sm font-semibold rounded-xl transition-all disabled:opacity-60 ${
                       saved
                         ? 'bg-emerald-600 text-white'
                         : 'bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-300'
                     }`}
                   >
-                    {saved ? '✓ Market saved' : 'Save market info'}
+                    {saved ? '✓ Market saved' : saving ? 'Saving…' : 'Save market info'}
                   </button>
                 </div>
               </div>
@@ -260,14 +255,13 @@ export default function Onboarding() {
                   You're ready to go, {agentProfile.name.split(' ')[0]}
                 </h1>
                 <p className="text-sm text-stone-500 dark:text-stone-400 mb-8 leading-relaxed">
-                  {leads.length} leads loaded · {leads.filter(l => l.stage === 'booked').length} appointments already booked in demo · 18 scripts ready to use
+                  Your agent calls leads straight from your Google Sheet, personalized to each one — name, interest, and source.
                 </p>
 
-                <div className="grid sm:grid-cols-3 gap-4 mb-8">
+                <div className="grid sm:grid-cols-2 gap-4 mb-2">
                   {[
-                    { label: 'Open Scripts', desc: 'Start with the Market Shift opener', href: '/portal/scripts', color: 'bg-amber-600 hover:bg-amber-700 text-white' },
-                    { label: 'View Pipeline', desc: 'See all 48 leads by stage', href: '/portal/crm', color: 'bg-stone-900 dark:bg-stone-800 hover:bg-stone-800 text-white' },
-                    { label: 'See Dashboard', desc: 'Review your metrics', href: '/portal/dashboard', color: 'bg-white dark:bg-stone-800 hover:bg-stone-50 text-stone-800 dark:text-stone-200 border border-stone-200 dark:border-stone-700' },
+                    { label: 'View Pipeline', desc: 'See your leads and call status', href: '/portal/crm', color: 'bg-amber-600 hover:bg-amber-700 text-white' },
+                    { label: 'See Dashboard', desc: 'Review your call results', href: '/portal/dashboard', color: 'bg-stone-900 dark:bg-stone-800 hover:bg-stone-800 text-white' },
                   ].map(action => (
                     <a
                       key={action.label}
@@ -279,10 +273,6 @@ export default function Onboarding() {
                     </a>
                   ))}
                 </div>
-
-                <p className="text-xs text-stone-400 dark:text-stone-500">
-                  Need help? All SOPs and guides are in <a href="/portal/assets" className="text-amber-600 hover:underline">Assets</a>.
-                </p>
               </div>
             )}
           </div>
