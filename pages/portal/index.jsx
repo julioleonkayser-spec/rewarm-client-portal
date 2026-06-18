@@ -4,32 +4,45 @@ import { agentProfile } from '../../lib/portal/demo-data';
 
 const DEMO_KEY = 'REWARM-DEMO-2024';
 
+// Tier access keys — issued manually to buyers after Gumroad purchase.
+// Each key maps to the plan name shown in the portal.
+const TIER_KEYS = {
+  'REWARM-STARTER-2024': 'Starter',
+  'REWARM-GROWTH-2024': 'Growth',
+  'REWARM-PRO-2024': 'Pro',
+};
+
 export default function PortalLogin() {
   const router = useRouter();
   const [key, setKey] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const startSession = () => {
+  const startSession = (plan = 'Demo') => {
     localStorage.setItem('rewarm_session', JSON.stringify({
       name: agentProfile.name,
       email: agentProfile.email,
       brokerage: agentProfile.brokerage,
       joinDate: agentProfile.joinDate,
+      plan,
     }));
     router.push('/portal/dashboard');
   };
 
   const handleDemoAccess = () => {
     setLoading(true);
-    setTimeout(startSession, 700);
+    setTimeout(() => startSession('Demo'), 700);
   };
 
   const handleKeySubmit = (e) => {
     e.preventDefault();
-    if (key.trim().toUpperCase() === DEMO_KEY) {
+    const submitted = key.trim().toUpperCase();
+    if (submitted === DEMO_KEY) {
       setLoading(true);
-      setTimeout(startSession, 700);
+      setTimeout(() => startSession('Demo'), 700);
+    } else if (TIER_KEYS[submitted]) {
+      setLoading(true);
+      setTimeout(() => startSession(TIER_KEYS[submitted]), 700);
     } else {
       setError('Invalid access key. Use the demo button above to explore.');
     }
