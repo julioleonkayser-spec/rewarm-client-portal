@@ -24,6 +24,15 @@ const NAV = [
     ),
   },
   {
+    href: '/portal/dialer',
+    label: 'Dialer',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 flex-shrink-0">
+        <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.9 9.8a19.79 19.79 0 01-3.07-8.67A2 2 0 012.82 0h3a2 2 0 012 1.72c.13.96.36 1.9.71 2.81a2 2 0 01-.45 2.11L7.09 7.64A16 16 0 0014.36 15l1-1a2 2 0 012.11-.45c.91.35 1.85.58 2.81.71A2 2 0 0122 16.92z"/>
+      </svg>
+    ),
+  },
+  {
     href: '/portal/settings',
     label: 'Settings',
     icon: (

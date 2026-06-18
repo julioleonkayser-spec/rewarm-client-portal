@@ -3,9 +3,16 @@ const { getProfile, setProfile } = require('../../lib/sheets');
 const DEFAULT_PROFILE = {
   name: '',
   email: '',
+  brokerage: '',
+  language: 'en',
+  market_type: 'residential',
+  timezone: '',
+  plan_name: '',
+  billing_cycle_start: '',
+  dataSheetId: '',
+  // legacy fields kept for existing stored profiles
   phone: '',
   website: '',
-  brokerage: '',
   license: '',
   specialties: '',
   market: '',

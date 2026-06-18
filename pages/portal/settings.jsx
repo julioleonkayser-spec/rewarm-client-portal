@@ -3,8 +3,7 @@ import PortalLayout from '../../components/portal/PortalLayout';
 
 const NAV_ITEMS = [
   { id: 'profile',      label: 'Profile' },
-  { id: 'business',     label: 'Business' },
-  { id: 'market',       label: 'Market' },
+  { id: 'plan',         label: 'Plan' },
   { id: 'integrations', label: 'Integrations' },
   { id: 'access',       label: 'Access' },
 ];
@@ -31,6 +30,152 @@ function Field({ label, value, onChange, type = 'text', placeholder }) {
         type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
         className="w-full px-4 py-3 text-sm border border-stone-200 dark:border-stone-700 rounded-xl bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-shadow"
       />
+    </div>
+  );
+}
+
+function SelectField({ label, value, onChange, options }) {
+  return (
+    <div>
+      <label className="block text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wide mb-1.5">{label}</label>
+      <select
+        value={value} onChange={e => onChange(e.target.value)}
+        className="w-full px-4 py-3 text-sm border border-stone-200 dark:border-stone-700 rounded-xl bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-shadow"
+      >
+        {options.map(o => (
+          <option key={o.value} value={o.value}>{o.label}</option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+const LANGUAGE_OPTIONS = [
+  { value: 'en', label: 'English' },
+  { value: 'es', label: 'Spanish' },
+  { value: 'pt', label: 'Portuguese' },
+  { value: 'fr', label: 'French' },
+  { value: 'de', label: 'German' },
+];
+
+const MARKET_TYPE_OPTIONS = [
+  { value: 'residential', label: 'Residential' },
+  { value: 'commercial',  label: 'Commercial' },
+  { value: 'mixed',       label: 'Mixed' },
+  { value: 'luxury',      label: 'Luxury' },
+];
+
+const PLAN_OPTIONS = [
+  { value: 'Demo',    label: 'Demo — 150 leads/mo' },
+  { value: 'Starter', label: 'Starter — 150 leads/mo ($49.99)' },
+  { value: 'Growth',  label: 'Growth — 350 leads/mo ($100)' },
+  { value: 'Pro',     label: 'Pro — 750 leads/mo ($262.49)' },
+];
+
+const WARN_COLORS = {
+  at_limit:   { bar: 'bg-red-500',    badge: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400',       msg: 'text-red-600 dark:text-red-400' },
+  warning_80: { bar: 'bg-orange-500', badge: 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400', msg: 'text-orange-600 dark:text-orange-400' },
+  warning_50: { bar: 'bg-amber-500',  badge: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400',   msg: 'text-amber-600 dark:text-amber-400' },
+};
+
+function PlanSection({ profile, onSaved }) {
+  const [planName, setPlanName]     = useState(profile?.plan_name || 'Demo');
+  const [cycleStart, setCycleStart] = useState(profile?.billing_cycle_start || '');
+  const [usage, setUsage]           = useState(null);
+  const [loadingUsage, setLoadingUsage] = useState(true);
+  const [saveStatus, setSaveStatus] = useState('idle');
+
+  useEffect(() => {
+    fetch('/api/plan')
+      .then(r => r.json())
+      .then(d => { if (d.plan) setUsage(d.plan); })
+      .catch(() => {})
+      .finally(() => setLoadingUsage(false));
+  }, []);
+
+  const save = async () => {
+    setSaveStatus('saving');
+    try {
+      const res = await fetch('/api/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan_name: planName, billing_cycle_start: cycleStart }),
+      });
+      if (!res.ok) throw new Error('Save failed');
+      setSaveStatus('saved');
+      onSaved?.();
+      setTimeout(() => setSaveStatus('idle'), 2500);
+    } catch { setSaveStatus('idle'); }
+  };
+
+  const wl = usage?.warning_level;
+  const wc = WARN_COLORS[wl];
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-base font-semibold text-stone-900 dark:text-stone-100 tracking-tight">Plan</h2>
+        <p className="text-xs text-stone-500 mt-0.5">Subscription tier and billing cycle</p>
+      </div>
+
+      <div className="grid sm:grid-cols-2 gap-4">
+        <SelectField label="Plan" value={planName} onChange={setPlanName} options={PLAN_OPTIONS} />
+        <div>
+          <label className="block text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wide mb-1.5">Billing Cycle Start</label>
+          <input
+            type="date" value={cycleStart} onChange={e => setCycleStart(e.target.value)}
+            className="w-full px-4 py-3 text-sm border border-stone-200 dark:border-stone-700 rounded-xl bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-amber-500"
+          />
+          <p className="mt-1 text-xs text-stone-400">Leave blank to default to 1st of current month</p>
+        </div>
+      </div>
+
+      {loadingUsage ? (
+        <div className="rounded-xl border border-stone-100 dark:border-stone-800 p-4 text-xs text-stone-400">Loading usage…</div>
+      ) : usage ? (
+        <div className="rounded-xl border border-stone-200 dark:border-stone-700 p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-stone-700 dark:text-stone-300">Usage this billing cycle</span>
+            {wc && (
+              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${wc.badge}`}>
+                {wl === 'at_limit' ? 'LIMIT REACHED' : wl === 'warning_80' ? '80% USED' : '50% USED'}
+              </span>
+            )}
+          </div>
+
+          <div className="h-2 rounded-full bg-stone-100 dark:bg-stone-800 overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all ${wc?.bar || 'bg-emerald-500'}`}
+              style={{ width: `${usage.usage_percent}%` }}
+            />
+          </div>
+
+          <div className="flex justify-between text-xs text-stone-500">
+            <span>{usage.leads_added_this_cycle} leads added</span>
+            <span>{usage.remaining_leads} of {usage.monthly_lead_cap} remaining</span>
+          </div>
+
+          <p className="text-xs text-stone-400">
+            Cycle: {usage.billing_cycle_start} → {usage.billing_cycle_end}
+          </p>
+
+          {wl === 'at_limit' && (
+            <p className={`text-xs font-medium ${wc.msg}`}>
+              Monthly limit reached. Contact support to continue or upgrade your plan.
+            </p>
+          )}
+
+          {usage.usage_method === 'total_rows' && (
+            <p className="text-[10px] text-stone-400 italic">
+              No <code>date_added</code> column detected — usage shown as total row count. Add a <code>date_added</code> column for accurate per-cycle tracking.
+            </p>
+          )}
+        </div>
+      ) : null}
+
+      <div className="flex justify-end pt-1">
+        <SaveButton onClick={save} status={saveStatus} />
+      </div>
     </div>
   );
 }
@@ -154,10 +299,9 @@ export default function Settings() {
   const [saveStatus, setSaveStatus] = useState('idle');
   const [error, setError] = useState(null);
   const [profile, setProfileState] = useState({
-    name: '', email: '', phone: '', website: '',
-    brokerage: '', license: '', specialties: '',
-    market: '', priceRange: '', avgDeal: '675000', commissionRate: '2.5',
-    dataSheetId: '',
+    name: '', email: '', brokerage: '',
+    language: 'en', market_type: 'residential', timezone: '',
+    plan_name: '', billing_cycle_start: '', dataSheetId: '',
   });
 
   const reload = () => {
@@ -174,7 +318,18 @@ export default function Settings() {
   const handleSave = async () => {
     setSaveStatus('saving');
     try {
-      const res = await fetch('/api/profile', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(profile) });
+      const res = await fetch('/api/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: profile.name,
+          email: profile.email,
+          brokerage: profile.brokerage,
+          language: profile.language,
+          market_type: profile.market_type,
+          timezone: profile.timezone,
+        }),
+      });
       if (!res.ok) throw new Error('Save failed');
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2000);
@@ -191,7 +346,9 @@ export default function Settings() {
             {NAV_ITEMS.map(item => (
               <button key={item.id} onClick={() => setSection(item.id)}
                 className={`text-left px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                  section === item.id ? 'bg-stone-100 dark:bg-stone-800 text-stone-900 dark:text-stone-100' : 'text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:hover:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800/50'
+                  section === item.id
+                    ? 'bg-stone-100 dark:bg-stone-800 text-stone-900 dark:text-stone-100'
+                    : 'text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:hover:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800/50'
                 }`}>{item.label}</button>
             ))}
           </nav>
@@ -200,7 +357,11 @@ export default function Settings() {
             <div className="flex gap-1 bg-stone-100 dark:bg-stone-800 rounded-xl p-1 mb-5 overflow-x-auto">
               {NAV_ITEMS.map(item => (
                 <button key={item.id} onClick={() => setSection(item.id)}
-                  className={`flex-1 py-2 px-2 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${section === item.id ? 'bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 shadow-sm' : 'text-stone-500 dark:text-stone-400'}`}
+                  className={`flex-1 py-2 px-2 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
+                    section === item.id
+                      ? 'bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 shadow-sm'
+                      : 'text-stone-500 dark:text-stone-400'
+                  }`}
                 >{item.label}</button>
               ))}
             </div>
@@ -208,51 +369,34 @@ export default function Settings() {
 
           <div className="flex-1 min-w-0">
             <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl p-6 space-y-5">
-              {error && <div className="p-3 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/30 text-xs text-red-700 dark:text-red-400">{error}</div>}
+              {error && (
+                <div className="p-3 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/30 text-xs text-red-700 dark:text-red-400">{error}</div>
+              )}
 
               {section === 'profile' && (<>
-                <div><h2 className="text-base font-semibold text-stone-900 dark:text-stone-100 tracking-tight">Profile</h2><p className="text-xs text-stone-500 mt-0.5">Your personal contact information</p></div>
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <Field label="Full Name" value={profile.name} onChange={upd('name')} placeholder="Your full name" />
-                  <Field label="Email" value={profile.email} onChange={upd('email')} type="email" placeholder="your@email.com" />
-                  <Field label="Phone" value={profile.phone} onChange={upd('phone')} type="tel" placeholder="(512) 000-0000" />
-                  <Field label="Website" value={profile.website} onChange={upd('website')} placeholder="yoursite.com" />
-                </div>
-                <div className="flex justify-end pt-2"><SaveButton onClick={handleSave} status={saveStatus} /></div>
-              </>)}
-
-              {section === 'business' && (<>
-                <div><h2 className="text-base font-semibold text-stone-900 dark:text-stone-100 tracking-tight">Business</h2><p className="text-xs text-stone-500 mt-0.5">Brokerage and license details</p></div>
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <Field label="Brokerage" value={profile.brokerage} onChange={upd('brokerage')} placeholder="Your brokerage name" />
-                  <Field label="License Number" value={profile.license} onChange={upd('license')} placeholder="TX #0000000" />
-                </div>
                 <div>
-                  <label className="block text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wide mb-1.5">Specialties</label>
-                  <input type="text" value={profile.specialties} onChange={e => upd('specialties')(e.target.value)} placeholder="e.g. Single Family, Luxury, First-Time Buyers" className="w-full px-4 py-3 text-sm border border-stone-200 dark:border-stone-700 rounded-xl bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-500" />
-                  <p className="mt-1 text-xs text-stone-400">Comma-separated values</p>
+                  <h2 className="text-base font-semibold text-stone-900 dark:text-stone-100 tracking-tight">Profile</h2>
+                  <p className="text-xs text-stone-500 mt-0.5">Your identity shown across the portal</p>
                 </div>
-                <div className="flex justify-end pt-2"><SaveButton onClick={handleSave} status={saveStatus} /></div>
-              </>)}
-
-              {section === 'market' && (<>
-                <div><h2 className="text-base font-semibold text-stone-900 dark:text-stone-100 tracking-tight">Market</h2><p className="text-xs text-stone-500 mt-0.5">Territory and deal parameters</p></div>
                 <div className="grid sm:grid-cols-2 gap-4">
-                  <Field label="Primary Market" value={profile.market} onChange={upd('market')} placeholder="e.g. Austin, TX" />
-                  <Field label="Price Range" value={profile.priceRange} onChange={upd('priceRange')} placeholder="e.g. $400K – $1.2M" />
-                  <Field label="Avg Deal Size ($)" value={profile.avgDeal} onChange={upd('avgDeal')} type="number" placeholder="675000" />
-                  <Field label="Commission Rate (%)" value={profile.commissionRate} onChange={upd('commissionRate')} type="number" placeholder="2.5" />
-                </div>
-                <div className="p-4 bg-stone-50 dark:bg-stone-800/50 rounded-xl">
-                  <p className="text-xs text-stone-500 dark:text-stone-400">Estimated commission per deal: <span className="font-semibold text-stone-700 dark:text-stone-300">${Math.round(parseFloat(profile.avgDeal||0)*(parseFloat(profile.commissionRate||0)/100)).toLocaleString()}</span></p>
+                  <Field label="Full Name"     value={profile.name}       onChange={upd('name')}        placeholder="Your full name" />
+                  <Field label="Company"        value={profile.brokerage}  onChange={upd('brokerage')}   placeholder="Your brokerage or company" />
+                  <SelectField label="Language"    value={profile.language || 'en'}           onChange={upd('language')}    options={LANGUAGE_OPTIONS} />
+                  <SelectField label="Market Type" value={profile.market_type || 'residential'} onChange={upd('market_type')} options={MARKET_TYPE_OPTIONS} />
+                  <Field label="Timezone"       value={profile.timezone}   onChange={upd('timezone')}    placeholder="e.g. America/Chicago" />
+                  <Field label="Contact Email"  value={profile.email}      onChange={upd('email')}       type="email" placeholder="your@email.com" />
                 </div>
                 <div className="flex justify-end pt-2"><SaveButton onClick={handleSave} status={saveStatus} /></div>
               </>)}
 
+              {section === 'plan'         && <PlanSection         profile={profile} onSaved={reload} />}
               {section === 'integrations' && <IntegrationsSection profile={profile} onSaved={reload} />}
 
               {section === 'access' && (<>
-                <div><h2 className="text-base font-semibold text-stone-900 dark:text-stone-100 tracking-tight">Access</h2><p className="text-xs text-stone-500 mt-0.5">How you access this portal</p></div>
+                <div>
+                  <h2 className="text-base font-semibold text-stone-900 dark:text-stone-100 tracking-tight">Access</h2>
+                  <p className="text-xs text-stone-500 mt-0.5">How you access this portal</p>
+                </div>
                 <div className="flex items-center gap-3 p-4 rounded-xl bg-stone-50 dark:bg-stone-800/50 border border-stone-200 dark:border-stone-700">
                   <div className="w-2.5 h-2.5 rounded-full bg-stone-300 dark:bg-stone-600 flex-shrink-0" />
                   <div>

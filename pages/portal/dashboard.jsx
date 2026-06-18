@@ -127,6 +127,42 @@ export default function Dashboard() {
           </div>
         )}
 
+        {/* Plan usage strip */}
+        {data?.plan && (
+          <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl px-5 py-4">
+            <div className="flex items-center justify-between mb-2 gap-3">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-xs font-semibold text-stone-700 dark:text-stone-300 whitespace-nowrap">{data.plan.plan_name} Plan</span>
+                {data.plan.warning_level === 'at_limit' && (
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 whitespace-nowrap">LIMIT REACHED</span>
+                )}
+                {data.plan.warning_level === 'warning_80' && (
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 whitespace-nowrap">80% USED</span>
+                )}
+                {data.plan.warning_level === 'warning_50' && (
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 whitespace-nowrap">50% USED</span>
+                )}
+              </div>
+              <span className="text-xs text-stone-400 whitespace-nowrap flex-shrink-0">
+                {data.plan.leads_added_this_cycle} / {data.plan.monthly_lead_cap} leads · {data.plan.remaining_leads} remaining
+              </span>
+            </div>
+            <div className="h-1.5 rounded-full bg-stone-100 dark:bg-stone-800 overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all ${
+                  data.plan.warning_level === 'at_limit'   ? 'bg-red-500' :
+                  data.plan.warning_level === 'warning_80' ? 'bg-orange-500' :
+                  data.plan.warning_level === 'warning_50' ? 'bg-amber-500' : 'bg-emerald-500'
+                }`}
+                style={{ width: `${data.plan.usage_percent}%` }}
+              />
+            </div>
+            {data.plan.usage_method === 'total_rows' && (
+              <p className="mt-1 text-[10px] text-stone-400">Usage based on total row count — add a <code>date_added</code> column for accurate cycle tracking</p>
+            )}
+          </div>
+        )}
+
         {/* KPI cards */}
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           <KpiCard label="Total Leads" value={allLeads.length}  sub="in your sheet"                accent="text-stone-900 dark:text-stone-100"     ring="bg-stone-100 dark:bg-stone-800" />

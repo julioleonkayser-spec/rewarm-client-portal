@@ -1,5 +1,6 @@
 import { getSheetsClient, getServiceAccountEmail, RO } from '../../../lib/sheets-client';
 import { getProfile } from '../../../lib/sheets';
+import { buildPlanSummary } from '../../../lib/plan-config';
 
 const SHEET_TAB = process.env.SHEET_TAB_NAME || 'lead-reactivation-sheet';
 
@@ -83,8 +84,9 @@ export default async function handler(req, res) {
   res.setHeader('Cache-Control', 's-maxage=30,stale-while-revalidate=59');
 
   let sheetId;
+  let profile = null;
   try {
-    const profile = await getProfile();
+    profile = await getProfile();
     sheetId = profile?.dataSheetId || process.env.GOOGLE_SHEETS_ID || process.env.GOOGLE_SHEET_ID;
   } catch {
     sheetId = process.env.GOOGLE_SHEETS_ID || process.env.GOOGLE_SHEET_ID;
@@ -129,7 +131,8 @@ export default async function handler(req, res) {
       });
     }
 
-    return res.status(200).json({ ...data, sheetId });
+    const plan = buildPlanSummary(profile, rows);
+    return res.status(200).json({ ...data, sheetId, plan });
   } catch (err) {
     if (err.code === 403 || err.status === 403) {
       return res.status(200).json({

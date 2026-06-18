@@ -1,4 +1,5 @@
-const { getAllRows, getDialerStatus, getEffectiveSheetId } = require('../../lib/sheets');
+const { getAllRows, getDialerState, setDialerStatus, getProfile, SHEET_ID } = require('../../lib/sheets');
+const { buildPlanSummary } = require('../../lib/plan-config');
 const { toE164 } = require('../../lib/phone');
 
 export default async function handler(req, res) {
@@ -9,11 +10,20 @@ export default async function handler(req, res) {
     if (auth !== 'Bearer ' + secret) return res.status(401).json({ error: 'Unauthorized' });
   }
   try {
-    if ((await getDialerStatus()) === 'PAUSED') {
-      return res.status(200).json({ status: 'paused', message: 'Dialer is paused — no call placed' });
+    const dialerState = await getDialerState();
+    if (dialerState.status !== 'active') {
+      return res.status(200).json({ status: dialerState.status, message: 'Dialer is not active — no call placed' });
     }
-    const sheetId = await getEffectiveSheetId();
+    const profile = await getProfile();
+    const sheetId = profile?.dataSheetId || SHEET_ID;
     const rows = await getAllRows(sheetId);
+
+    // Block dialing if the client has hit their monthly lead cap.
+    const plan = buildPlanSummary(profile, rows);
+    if (plan.at_limit) {
+      await setDialerStatus('PAUSED_BY_LIMIT');
+      return res.status(200).json({ status: 'paused_by_limit', message: 'Monthly lead cap reached — dialer paused' });
+    }
     const headers = rows[0];
     const statusCol = headers.indexOf('call_status');
     let lead = null;
@@ -24,7 +34,10 @@ export default async function handler(req, res) {
         break;
       }
     }
-    if (!lead) return res.status(200).json({ status: 'done', message: 'No uncalled leads remaining' });
+    if (!lead) {
+      await setDialerStatus('PAUSED_NO_LEADS');
+      return res.status(200).json({ status: 'paused_no_leads', message: 'No uncalled leads remaining — dialer paused' });
+    }
     const toNum = toE164(lead.phone_number);
     const xfer  = toE164(lead.transfer_number);
     const retellRes = await fetch('https://api.retellai.com/v2/create-phone-call', {
