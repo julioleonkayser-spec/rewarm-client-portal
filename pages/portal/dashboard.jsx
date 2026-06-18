@@ -49,12 +49,12 @@ export default function Dashboard() {
     );
   }
 
+  const sheetStatus = data?.status;
   const kpis = data?.kpis || { total: 0, hot: 0, hotPct: 0, avgQ: 0, roi: 0 };
   const statusBreakdown = data?.statusBreakdown || [];
   const dailyVolume = data?.dailyVolume || [];
   const qualityTrend = data?.qualityTrend || [];
   const recentCalls = data?.recentCalls || [];
-  const isDemo = data?.isDemo;
 
   const KPI_CARDS = [
     { label: 'Total Calls',  value: kpis.total,            sub: 'logged from your Sheet', accent: 'text-stone-900 dark:text-stone-100', ring: 'bg-stone-100 dark:bg-stone-800' },
@@ -83,9 +83,29 @@ export default function Dashboard() {
           </Link>
         </PageHeader>
 
-        {isDemo && (
-          <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/30 text-sm text-amber-800 dark:text-amber-400">
-            Showing sample data — we couldn't read your Google Sheet yet. Double-check your Sheet connection in Settings, or run your first calls to see real numbers here.
+        {sheetStatus === 'not_configured' && (
+          <div className="p-5 rounded-xl bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-900/40 text-sm text-amber-800 dark:text-amber-300">
+            <p className="font-semibold mb-1">No sheet connected yet.</p>
+            <p>Go to <a href="/portal/settings#integrations" className="underline font-medium">Settings → Integrations</a> to connect your Google Sheet and start seeing real data here.</p>
+          </div>
+        )}
+        {sheetStatus === 'empty' && (
+          <div className="p-5 rounded-xl bg-stone-50 dark:bg-stone-800/50 border border-stone-200 dark:border-stone-700 text-sm text-stone-600 dark:text-stone-400">
+            <p className="font-semibold mb-1">Sheet connected — no calls logged yet.</p>
+            <p>Your sheet is readable. Add leads and run calls to see your dashboard populate with real data.</p>
+          </div>
+        )}
+        {(sheetStatus === 'forbidden' || sheetStatus === 'not_found') && (
+          <div className="p-5 rounded-xl bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900/40 text-sm text-red-700 dark:text-red-400">
+            <p className="font-semibold mb-1">{sheetStatus === 'forbidden' ? 'Permission denied.' : 'Sheet not found.'}</p>
+            <p>{sheetStatus === 'forbidden' ? 'Share your sheet with the service account (Viewer). ' : 'Check the sheet ID in '}
+              <a href="/portal/settings" className="underline font-medium">Settings → Integrations</a>.
+            </p>
+          </div>
+        )}
+        {sheetStatus === 'error' && (
+          <div className="p-4 rounded-xl bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900/40 text-sm text-red-700 dark:text-red-400">
+            Could not read your sheet. <a href="/portal/settings" className="underline font-medium">Check your connection in Settings</a>.
           </div>
         )}
 

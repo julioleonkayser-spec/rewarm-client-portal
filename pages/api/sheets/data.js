@@ -1,28 +1,7 @@
-import { google } from 'googleapis';
+import { getSheetsClient, getServiceAccountEmail, RO } from '../../../lib/sheets-client';
+import { getProfile } from '../../../lib/sheets';
 
 const SHEET_TAB = process.env.SHEET_TAB_NAME || 'lead-reactivation-sheet';
-
-// Accept either a single GOOGLE_SERVICE_ACCOUNT_JSON env var, or the original
-// project's separate GOOGLE_SERVICE_ACCOUNT_EMAIL + GOOGLE_PRIVATE_KEY vars.
-function getCredentials() {
-  if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
-    return JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
-  }
-  const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-  let key = process.env.GOOGLE_PRIVATE_KEY;
-  if (!email || !key) return {};
-  key = key.replace(/\\n/g, '\n');
-  return { client_email: email, private_key: key };
-}
-
-function getSheets() {
-  const creds = getCredentials();
-  const auth = new google.auth.GoogleAuth({
-    credentials: creds,
-    scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
-  });
-  return google.sheets({ version: 'v4', auth });
-}
 
 function normStatus(s) {
   const v = (s || '').toUpperCase().trim();
@@ -46,7 +25,7 @@ function processRows(rows) {
     quality:  parseFloat(r[ix('interest_level')] || r[ix('sentiment_score')] || '0') || 0,
   })).filter(r => r.status);
 
-  if (records.length < 3) return null;
+  if (records.length === 0) return null;
 
   const total = records.length;
   const hot   = records.filter(r => r.status === 'HOT').length;
@@ -77,6 +56,7 @@ function processRows(rows) {
     .map(([, s], i) => ({ week: 'Wk ' + (i + 1), score: +(s.reduce((a, b) => a + b, 0) / s.length).toFixed(1) }));
 
   return {
+    status: 'ok',
     kpis: { total, hot, hotPct: total ? Math.round(hot / total * 100) : 0, avgQ, roi: hot * 0.30 * 7500 },
     statusBreakdown: [
       { name: 'HOT',  value: hot,  color: '#10B981' },
@@ -86,38 +66,7 @@ function processRows(rows) {
     ].filter(s => s.value > 0),
     dailyVolume,
     qualityTrend,
-    recentCalls: [...records].sort((a, b) => b.dateStr.localeCompare(a.dateStr)).slice(0, 10),
-    isDemo: false,
-    lastUpdated: new Date().toISOString(),
-  };
-}
-
-function demo() {
-  const days = Array.from({ length: 30 }, (_, i) => {
-    const d = new Date(); d.setDate(d.getDate() - (29 - i));
-    return { date: d.toISOString().slice(5, 10).replace('-', '/'), calls: Math.floor(Math.random() * 4) + 1 };
-  });
-  return {
-    kpis: { total: 47, hot: 12, hotPct: 26, avgQ: 7.3, roi: 27000 },
-    statusBreakdown: [
-      { name: 'HOT',  value: 12, color: '#10B981' },
-      { name: 'WARM', value: 18, color: '#FBBF24' },
-      { name: 'COLD', value: 11, color: '#9CA3AF' },
-      { name: 'SKIP', value: 6,  color: '#D1D5DB' },
-    ],
-    dailyVolume: days,
-    qualityTrend: [
-      { week: 'Wk 1', score: 5.8 }, { week: 'Wk 2', score: 6.4 },
-      { week: 'Wk 3', score: 7.1 }, { week: 'Wk 4', score: 7.3 },
-    ],
-    recentCalls: [
-      { phone: '+16025550101', source: 'Zillow',      interest: '3BR in Scottsdale under $500K', quality: 8.5, status: 'HOT',  dateStr: '2026-06-11' },
-      { phone: '+14805550102', source: 'Facebook Ad', interest: 'Selling 4BR in Mesa',            quality: 6.2, status: 'WARM', dateStr: '2026-06-11' },
-      { phone: '+16235550103', source: 'Realtor.com', interest: '4BR with pool in Gilbert',       quality: 7.8, status: 'HOT',  dateStr: '2026-06-10' },
-      { phone: '+14805550104', source: 'Google Ad',   interest: 'Condo in Old Town Scottsdale',   quality: 4.5, status: 'COLD', dateStr: '2026-06-10' },
-      { phone: '+16025550105', source: 'Open House',  interest: 'Selling 3BR in Chandler',        quality: 5.9, status: 'WARM', dateStr: '2026-06-09' },
-    ],
-    isDemo: true,
+    recentCalls: records.slice(-10).reverse(),
     lastUpdated: new Date().toISOString(),
   };
 }
@@ -125,15 +74,62 @@ function demo() {
 export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
   res.setHeader('Cache-Control', 's-maxage=30,stale-while-revalidate=59');
+
+  let sheetId;
   try {
-    const sheets = getSheets();
-    const result = await sheets.spreadsheets.values.get({
-      spreadsheetId: process.env.GOOGLE_SHEETS_ID || process.env.GOOGLE_SHEET_ID,
+    const profile = await getProfile();
+    sheetId = profile?.dataSheetId || process.env.GOOGLE_SHEETS_ID || process.env.GOOGLE_SHEET_ID;
+  } catch {
+    sheetId = process.env.GOOGLE_SHEETS_ID || process.env.GOOGLE_SHEET_ID;
+  }
+
+  if (!sheetId) {
+    return res.status(200).json({
+      status: 'not_configured',
+      serviceAccountEmail: getServiceAccountEmail(),
+    });
+  }
+
+  try {
+    const client = getSheetsClient(RO);
+    const result = await client.spreadsheets.values.get({
+      spreadsheetId: sheetId,
       range: `${SHEET_TAB}!A:R`,
     });
-    const data = processRows(result.data.values);
-    return res.status(200).json(data || demo());
-  } catch {
-    return res.status(200).json(demo());
+    const rows = result.data.values || [];
+
+    if (rows.length < 2) {
+      return res.status(200).json({
+        status: 'empty',
+        sheetId,
+        tab: SHEET_TAB,
+        serviceAccountEmail: getServiceAccountEmail(),
+      });
+    }
+
+    const data = processRows(rows);
+    if (!data) {
+      return res.status(200).json({
+        status: 'empty',
+        sheetId,
+        tab: SHEET_TAB,
+        rowCount: rows.length - 1,
+        serviceAccountEmail: getServiceAccountEmail(),
+      });
+    }
+
+    return res.status(200).json({ ...data, sheetId });
+  } catch (err) {
+    if (err.code === 403 || err.status === 403) {
+      return res.status(200).json({
+        status: 'forbidden',
+        sheetId,
+        serviceAccountEmail: getServiceAccountEmail(),
+      });
+    }
+    if (err.code === 404 || err.status === 404 || (err.message || '').includes('not found')) {
+      return res.status(200).json({ status: 'not_found', sheetId });
+    }
+    return res.status(200).json({ status: 'error', error: err.message });
   }
 }
