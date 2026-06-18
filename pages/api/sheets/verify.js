@@ -1,6 +1,9 @@
 import { getSheetsClient, parseSheetId, getServiceAccountEmail, RO } from '../../../lib/sheets-client';
 
 const REQUIRED_HEADERS = ['phone_number', 'call_status'];
+// Recommended: first_name/last_name improve personalization; date_added enables
+// accurate per-cycle usage counting (auto-created by post-call.js after first call).
+const RECOMMENDED_HEADERS = ['first_name', 'last_name', 'date_added'];
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
@@ -26,7 +29,8 @@ export default async function handler(req, res) {
     }
     const full = await client.spreadsheets.values.get({ spreadsheetId: sheetId, range: `${tab}!A:A` });
     const rowCount = Math.max(0, (full.data.values?.length || 1) - 1);
-    return res.status(200).json({ ok: true, sheetId, rowCount, tab });
+    const missingRecommended = RECOMMENDED_HEADERS.filter(h => !headers.includes(h));
+    return res.status(200).json({ ok: true, sheetId, rowCount, tab, missingRecommended });
   } catch (err) {
     if (err.code === 403 || err.status === 403) {
       return res.status(200).json({

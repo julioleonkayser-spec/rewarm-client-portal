@@ -1,92 +1,93 @@
 import { useState, useEffect } from 'react';
-import { ONBOARDING_CHECKLIST } from '../../lib/portal/demo-data';
 import PortalLayout from '../../components/portal/PortalLayout';
 
 const STEPS = [
-  { id: 1, title: 'Welcome',      subtitle: 'Your reactivation portal is ready', time: '1 min' },
-  { id: 2, title: 'Import Leads', subtitle: 'Bring your cold database in',        time: '5 min' },
-  { id: 3, title: 'Market Setup', subtitle: 'Tell us about your territory',       time: '2 min' },
-  { id: 4, title: "You're ready", subtitle: 'Time to start reactivating',         time: 'Go' },
+  { id: 1, title: 'Welcome',       subtitle: 'Your portal is live',       time: '1 min' },
+  { id: 2, title: 'Connect Sheet', subtitle: 'Link your Google Sheet',     time: '3 min' },
+  { id: 3, title: 'Import Leads',  subtitle: 'Add leads to your sheet',    time: '5 min' },
+  { id: 4, title: "You're ready",  subtitle: 'Start reactivating',         time: 'Go' },
 ];
 
-const REQUIRED_COLUMNS = [
-  'first_name', 'last_name', 'phone_number',
-  'lead_source', 'original_interest', 'agent_name', 'transfer_number',
+const REQUIRED_COLUMNS = ['phone_number', 'call_status'];
+const RECOMMENDED_COLUMNS = [
+  { name: 'first_name',        note: 'Personalizes call scripts' },
+  { name: 'last_name',         note: 'Personalizes call scripts' },
+  { name: 'lead_source',       note: 'Context for the agent' },
+  { name: 'original_interest', note: 'What the lead originally inquired about' },
+  { name: 'date_added',        note: 'Auto-set after first call — enables accurate usage tracking' },
 ];
 
 export default function Onboarding() {
-  const [step, setStep] = useState(1);
-  const [checklist, setChecklist] = useState(ONBOARDING_CHECKLIST);
-  const [firstName, setFirstName] = useState('');
-  const [market, setMarket] = useState({
-    city: '',
-    priceRange: '',
-    leadTypes: ['buyers', 'sellers'],
-    specialties: '',
-  });
-  const [saved, setSaved] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [step, setStep]               = useState(1);
+  const [firstName, setFirstName]     = useState('');
+  const [saEmail, setSaEmail]         = useState('');
+  const [sheetInput, setSheetInput]   = useState('');
+  const [verifyState, setVerifyState] = useState(null);
+  const [connecting, setConnecting]   = useState(false);
+  const [connected, setConnected]     = useState(false);
 
   useEffect(() => {
     fetch('/api/profile')
       .then(r => r.json())
       .then(d => {
         if (!d.profile) return;
-        const p = d.profile;
-        setFirstName(p.name?.split(' ')[0] || '');
-        setMarket(m => ({
-          ...m,
-          city: p.market || m.city,
-          priceRange: p.priceRange || m.priceRange,
-          specialties: Array.isArray(p.specialties)
-            ? p.specialties.join(', ')
-            : p.specialties || m.specialties,
-        }));
+        setFirstName(d.profile.name?.split(' ')[0] || '');
+        if (d.profile.dataSheetId) {
+          setSheetInput(d.profile.dataSheetId);
+          setConnected(true);
+        }
       })
+      .catch(() => {});
+    fetch('/api/sheets/data')
+      .then(r => r.json())
+      .then(d => { if (d.serviceAccountEmail) setSaEmail(d.serviceAccountEmail); })
       .catch(() => {});
   }, []);
 
-  const toggleCheck = (id) => {
-    setChecklist(list => list.map(item => item.id === id ? { ...item, done: !item.done } : item));
-  };
-
   const progress = Math.round((step - 1) / (STEPS.length - 1) * 100);
 
-  const handleSaveMarket = async () => {
-    setSaving(true);
+  const verify = async () => {
+    setVerifyState('loading');
+    try {
+      const res = await fetch('/api/sheets/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sheetId: sheetInput }),
+      });
+      setVerifyState(await res.json());
+    } catch (e) {
+      setVerifyState({ ok: false, error: e.message });
+    }
+  };
+
+  const connect = async () => {
+    if (!verifyState?.ok) return;
+    setConnecting(true);
     try {
       await fetch('/api/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          market: market.city,
-          priceRange: market.priceRange,
-          specialties: market.specialties,
-        }),
+        body: JSON.stringify({ dataSheetId: verifyState.sheetId }),
       });
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
-    } catch {
-      // Settings page surfaces save errors explicitly; stay silent here.
-    } finally {
-      setSaving(false);
-    }
+      setConnected(true);
+      setTimeout(() => setStep(3), 600);
+    } catch {}
+    setConnecting(false);
   };
 
   return (
     <PortalLayout title="Setup Guide">
       <div className="max-w-2xl mx-auto">
 
-        {/* Outcome promise */}
         <div className="mb-6 flex flex-wrap items-center gap-x-3 gap-y-2">
           <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-2.5 py-1 rounded-full">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
               <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
             </svg>
-            About 8 minutes
+            About 9 minutes
           </span>
           <p className="text-sm text-stone-500 dark:text-stone-400">
-            From a cold database to your first booked appointment — in four guided steps.
+            Connect your Google Sheet and add your first leads — that's it.
           </p>
         </div>
 
@@ -123,7 +124,6 @@ export default function Onboarding() {
           </div>
         </div>
 
-        {/* Step content */}
         <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl overflow-hidden">
           <div className="p-6 sm:p-8">
 
@@ -136,55 +136,115 @@ export default function Onboarding() {
                   </svg>
                 </div>
                 <h1 className="text-xl font-bold text-stone-900 dark:text-stone-100 tracking-tight mb-1">
-                  {firstName ? `Welcome, ${firstName}` : 'Welcome'}
+                  {firstName ? `Welcome, ${firstName}` : 'Welcome to ReWarm'}
                 </h1>
                 <p className="text-sm text-stone-500 dark:text-stone-400 mb-8 leading-relaxed">
-                  Your ReWarm portal is live. Here's what you'll set up to run your first reactivation campaign.
+                  Your AI voice agent calls leads from your Google Sheet — by name, interest, and source — and books appointments for you. Setup takes about 9 minutes.
                 </p>
 
                 <div className="space-y-3">
-                  {checklist.map(item => (
-                    <button
-                      key={item.id}
-                      onClick={() => toggleCheck(item.id)}
-                      className="w-full flex items-center gap-4 p-4 rounded-xl bg-stone-50 dark:bg-stone-800/50 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors text-left"
-                    >
-                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
-                        item.done ? 'bg-emerald-500 border-emerald-500' : 'border-stone-300 dark:border-stone-600'
-                      }`}>
-                        {item.done && (
-                          <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3">
-                            <polyline points="20 6 9 17 4 12" />
-                          </svg>
-                        )}
+                  {[
+                    { icon: '📋', title: 'Connect your Google Sheet', desc: 'Your sheet is the single source of truth for leads and results.' },
+                    { icon: '📞', title: 'Add your leads', desc: 'Paste your cold database directly into the sheet.' },
+                    { icon: '🚀', title: 'Watch the pipeline fill', desc: 'Results appear in your dashboard in real time after each call.' },
+                  ].map(item => (
+                    <div key={item.title} className="flex items-start gap-4 p-4 rounded-xl bg-stone-50 dark:bg-stone-800/50">
+                      <span className="text-lg flex-shrink-0">{item.icon}</span>
+                      <div>
+                        <p className="text-sm font-semibold text-stone-800 dark:text-stone-200">{item.title}</p>
+                        <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">{item.desc}</p>
                       </div>
-                      <span className={`text-sm font-medium ${item.done ? 'text-stone-400 line-through' : 'text-stone-700 dark:text-stone-300'}`}>
-                        {item.label}
-                      </span>
-                    </button>
+                    </div>
                   ))}
-                </div>
-
-                <div className="mt-6 p-4 bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/30 rounded-xl">
-                  <p className="text-xs text-amber-800 dark:text-amber-400 leading-relaxed">
-                    <span className="font-semibold">Tip:</span> Agents who finish setup in their first week see more booked appointments in the first 30 days.
-                  </p>
                 </div>
               </div>
             )}
 
-            {/* Step 2: Import leads */}
+            {/* Step 2: Connect Sheet */}
             {step === 2 && (
               <div>
-                <h1 className="text-xl font-bold text-stone-900 dark:text-stone-100 tracking-tight mb-1">Import your leads</h1>
+                <h1 className="text-xl font-bold text-stone-900 dark:text-stone-100 tracking-tight mb-1">Connect your sheet</h1>
                 <p className="text-sm text-stone-500 dark:text-stone-400 mb-6 leading-relaxed">
-                  Add your leads directly to your Google Sheet — that's the single source of truth your AI calling agent reads from. New rows appear in the dashboard automatically on the next refresh.
+                  The agent reads leads and writes results directly to your Google Sheet. Two steps: share it, then paste the URL.
+                </p>
+
+                <div className="space-y-5">
+                  <div className="rounded-xl border border-stone-200 dark:border-stone-700 p-4 space-y-2">
+                    <p className="text-xs font-semibold text-stone-700 dark:text-stone-300 uppercase tracking-wide">Step 1 — Share your sheet</p>
+                    <p className="text-xs text-stone-500 dark:text-stone-400">Open your Google Sheet → Share → add this email as <strong>Viewer</strong>:</p>
+                    {saEmail ? (
+                      <div className="flex items-center gap-2">
+                        <code className="flex-1 text-xs bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-lg px-3 py-2 font-mono text-stone-700 dark:text-stone-300 break-all">{saEmail}</code>
+                        <button onClick={() => navigator.clipboard?.writeText(saEmail)} className="flex-shrink-0 px-3 py-2 text-xs font-medium bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-400 rounded-lg transition-colors">Copy</button>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-stone-400 italic">Loading…</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-3">
+                    <p className="text-xs font-semibold text-stone-700 dark:text-stone-300 uppercase tracking-wide">Step 2 — Paste your sheet URL</p>
+                    <input
+                      type="text" value={sheetInput}
+                      onChange={e => { setSheetInput(e.target.value); setVerifyState(null); setConnected(false); }}
+                      placeholder="https://docs.google.com/spreadsheets/d/…"
+                      className="w-full px-4 py-3 text-sm border border-stone-200 dark:border-stone-700 rounded-xl bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    />
+                    <button
+                      onClick={verify}
+                      disabled={!sheetInput.trim() || verifyState === 'loading'}
+                      className="px-4 py-2.5 text-sm font-semibold rounded-xl bg-stone-800 dark:bg-stone-100 text-white dark:text-stone-900 hover:bg-stone-700 dark:hover:bg-stone-200 disabled:opacity-40 transition-colors"
+                    >
+                      {verifyState === 'loading' ? 'Checking…' : 'Verify Connection'}
+                    </button>
+
+                    {verifyState && verifyState !== 'loading' && (
+                      <div className="space-y-2">
+                        <div className={`p-4 rounded-xl border text-sm ${verifyState.ok
+                          ? 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300'
+                          : 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400'}`}
+                        >
+                          {verifyState.ok
+                            ? <>✓ Sheet found — <strong>{verifyState.rowCount}</strong> {verifyState.rowCount === 1 ? 'lead' : 'leads'} in tab <strong>{verifyState.tab}</strong>.</>
+                            : verifyState.error}
+                        </div>
+                        {verifyState.ok && verifyState.missingRecommended?.length > 0 && (
+                          <div className="p-3 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/10 text-xs text-amber-800 dark:text-amber-300">
+                            Recommended columns missing: <strong>{verifyState.missingRecommended.join(', ')}</strong>. You can add them now or later — the agent runs without them.
+                          </div>
+                        )}
+                        {verifyState.ok && (
+                          <button
+                            onClick={connect}
+                            disabled={connecting || connected}
+                            className={`w-full py-3 text-sm font-semibold rounded-xl transition-all ${
+                              connected
+                                ? 'bg-emerald-600 text-white opacity-80'
+                                : 'bg-amber-600 hover:bg-amber-700 text-white disabled:opacity-60'
+                            }`}
+                          >
+                            {connected ? '✓ Sheet connected — continuing…' : connecting ? 'Saving…' : 'Save Connection'}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Step 3: Import leads */}
+            {step === 3 && (
+              <div>
+                <h1 className="text-xl font-bold text-stone-900 dark:text-stone-100 tracking-tight mb-1">Add your leads</h1>
+                <p className="text-sm text-stone-500 dark:text-stone-400 mb-6 leading-relaxed">
+                  Paste your leads directly into your Google Sheet. The dashboard picks up new rows on the next refresh.
                 </p>
 
                 <div className="space-y-4">
                   <div className="rounded-xl border border-stone-200 dark:border-stone-700 p-4 space-y-3">
                     <p className="text-xs font-semibold text-stone-700 dark:text-stone-300 uppercase tracking-wide">Required columns</p>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="flex flex-wrap gap-2">
                       {REQUIRED_COLUMNS.map(col => (
                         <code key={col} className="text-xs bg-stone-50 dark:bg-stone-800 border border-stone-100 dark:border-stone-700 rounded-lg px-2 py-1.5 text-stone-600 dark:text-stone-400 font-mono">
                           {col}
@@ -193,81 +253,23 @@ export default function Onboarding() {
                     </div>
                   </div>
 
-                  <div className="p-4 bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/30 rounded-xl">
-                    <p className="text-xs text-amber-800 dark:text-amber-400 leading-relaxed">
-                      <span className="font-semibold">Tip:</span> Paste rows directly into your Google Sheet. The dashboard refreshes every 30s and picks up new entries automatically.
-                    </p>
-                  </div>
-
-                  <div className="p-4 bg-stone-50 dark:bg-stone-800/50 rounded-xl border border-stone-100 dark:border-stone-700">
-                    <p className="text-xs text-stone-500 dark:text-stone-400">
-                      Haven't connected your sheet yet?{' '}
-                      <a href="/portal/settings" className="text-amber-600 hover:underline font-medium">Go to Settings → Integrations</a> first.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Step 3: Market setup */}
-            {step === 3 && (
-              <div>
-                <h1 className="text-xl font-bold text-stone-900 dark:text-stone-100 tracking-tight mb-1">Set up your market</h1>
-                <p className="text-sm text-stone-500 dark:text-stone-400 mb-6 leading-relaxed">
-                  These details help personalize your scripts and pipeline tracking.
-                </p>
-
-                <div className="space-y-4">
-                  {[
-                    { label: 'Primary Market (City/Area)', key: 'city', placeholder: 'e.g. Austin, TX' },
-                    { label: 'Price Range', key: 'priceRange', placeholder: 'e.g. $400K – $1.2M' },
-                    { label: 'Specialties', key: 'specialties', placeholder: 'e.g. Single Family, Luxury, First-Time Buyers' },
-                  ].map(({ label, key, placeholder }) => (
-                    <div key={key}>
-                      <label className="block text-xs font-semibold text-stone-600 dark:text-stone-400 uppercase tracking-wide mb-1.5">{label}</label>
-                      <input
-                        type="text"
-                        value={market[key]}
-                        onChange={e => setMarket(m => ({ ...m, [key]: e.target.value }))}
-                        placeholder={placeholder}
-                        className="w-full px-4 py-3 text-sm border border-stone-200 dark:border-stone-700 rounded-xl bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                      />
-                    </div>
-                  ))}
-
-                  <div>
-                    <label className="block text-xs font-semibold text-stone-600 dark:text-stone-400 uppercase tracking-wide mb-2">Lead Types</label>
-                    <div className="flex gap-3">
-                      {['buyers', 'sellers', 'both'].map(type => (
-                        <label key={type} className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={market.leadTypes.includes(type)}
-                            onChange={() => setMarket(m => ({
-                              ...m,
-                              leadTypes: m.leadTypes.includes(type)
-                                ? m.leadTypes.filter(t => t !== type)
-                                : [...m.leadTypes, type]
-                            }))}
-                            className="rounded border-stone-300 text-amber-600 focus:ring-amber-500"
-                          />
-                          <span className="text-sm text-stone-700 dark:text-stone-300 capitalize">{type}</span>
-                        </label>
+                  <div className="rounded-xl border border-stone-200 dark:border-stone-700 p-4 space-y-3">
+                    <p className="text-xs font-semibold text-stone-700 dark:text-stone-300 uppercase tracking-wide">Recommended columns</p>
+                    <div className="space-y-2">
+                      {RECOMMENDED_COLUMNS.map(({ name, note }) => (
+                        <div key={name} className="flex items-start gap-3">
+                          <code className="text-xs bg-stone-50 dark:bg-stone-800 border border-stone-100 dark:border-stone-700 rounded-lg px-2 py-1.5 text-stone-600 dark:text-stone-400 font-mono whitespace-nowrap">{name}</code>
+                          <span className="text-xs text-stone-400 mt-1.5">{note}</span>
+                        </div>
                       ))}
                     </div>
                   </div>
 
-                  <button
-                    onClick={handleSaveMarket}
-                    disabled={saving}
-                    className={`w-full py-3 text-sm font-semibold rounded-xl transition-all disabled:opacity-60 ${
-                      saved
-                        ? 'bg-emerald-600 text-white'
-                        : 'bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-300'
-                    }`}
-                  >
-                    {saved ? '✓ Market saved' : saving ? 'Saving…' : 'Save market info'}
-                  </button>
+                  <div className="p-4 bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/30 rounded-xl">
+                    <p className="text-xs text-amber-800 dark:text-amber-400 leading-relaxed">
+                      <strong>Usage note:</strong> Each row in your sheet counts as one lead toward your monthly cap. The <code>date_added</code> column is written automatically after each call for accurate per-cycle tracking.
+                    </p>
+                  </div>
                 </div>
               </div>
             )}
@@ -281,16 +283,16 @@ export default function Onboarding() {
                   </svg>
                 </div>
                 <h1 className="text-xl font-bold text-stone-900 dark:text-stone-100 tracking-tight mb-2">
-                  {firstName ? `You're ready to go, ${firstName}` : "You're ready to go"}
+                  {firstName ? `You're all set, ${firstName}` : "You're all set"}
                 </h1>
                 <p className="text-sm text-stone-500 dark:text-stone-400 mb-8 leading-relaxed">
-                  Your agent calls leads straight from your Google Sheet, personalized to each one — name, interest, and source.
+                  Your agent calls leads straight from your Google Sheet, personalized to each one.
                 </p>
 
-                <div className="grid sm:grid-cols-2 gap-4 mb-2">
+                <div className="grid sm:grid-cols-2 gap-4">
                   {[
-                    { label: 'View Pipeline', desc: 'See your leads and call status', href: '/portal/crm', color: 'bg-amber-600 hover:bg-amber-700 text-white' },
-                    { label: 'See Dashboard', desc: 'Review your call results', href: '/portal/dashboard', color: 'bg-stone-900 dark:bg-stone-800 hover:bg-stone-800 text-white' },
+                    { label: 'View Pipeline', desc: 'See leads and call status', href: '/portal/crm', color: 'bg-amber-600 hover:bg-amber-700 text-white' },
+                    { label: 'See Dashboard', desc: 'Review call results live',  href: '/portal/dashboard', color: 'bg-stone-900 dark:bg-stone-800 hover:bg-stone-800 text-white' },
                   ].map(action => (
                     <a
                       key={action.label}
@@ -319,9 +321,10 @@ export default function Onboarding() {
               <span className="text-xs text-stone-400">Step {step} of {STEPS.length} · {STEPS[step - 1].time}</span>
               <button
                 onClick={() => setStep(s => Math.min(STEPS.length, s + 1))}
-                className="text-sm font-semibold text-amber-600 hover:text-amber-700 transition-colors"
+                disabled={step === 2 && !connected}
+                className="text-sm font-semibold text-amber-600 hover:text-amber-700 disabled:text-stone-300 dark:disabled:text-stone-600 disabled:cursor-not-allowed transition-colors"
               >
-                {step === 3 ? 'Finish setup →' : 'Continue →'}
+                {step === 3 ? 'Finish →' : 'Continue →'}
               </button>
             </div>
           )}

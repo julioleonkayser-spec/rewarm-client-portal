@@ -1,16 +1,6 @@
 import { useState } from 'react';
 import { useRouter } from 'next/router';
 
-const DEMO_KEY = 'REWARM-DEMO-2024';
-
-// Tier access keys — issued manually to buyers after Gumroad purchase.
-// Each key maps to the plan name shown in the portal.
-const TIER_KEYS = {
-  'REWARM-STARTER-2024': 'Starter',
-  'REWARM-GROWTH-2024': 'Growth',
-  'REWARM-PRO-2024': 'Pro',
-};
-
 export default function PortalLogin() {
   const router = useRouter();
   const [key, setKey] = useState('');
@@ -18,9 +8,7 @@ export default function PortalLogin() {
   const [loading, setLoading] = useState(false);
 
   const startSession = (plan = 'Demo') => {
-    localStorage.setItem('rewarm_session', JSON.stringify({ plan }));
-    // Persist plan to the profile so Settings → Plan pre-populates correctly.
-    // Only for paid tiers — demo sessions don't touch stored profile state.
+    localStorage.setItem('rewarm_session', JSON.stringify({ plan, loggedAt: Date.now() }));
     if (plan !== 'Demo') {
       fetch('/api/profile', {
         method: 'PUT',
@@ -36,17 +24,26 @@ export default function PortalLogin() {
     setTimeout(() => startSession('Demo'), 700);
   };
 
-  const handleKeySubmit = (e) => {
+  const handleKeySubmit = async (e) => {
     e.preventDefault();
-    const submitted = key.trim().toUpperCase();
-    if (submitted === DEMO_KEY) {
-      setLoading(true);
-      setTimeout(() => startSession('Demo'), 700);
-    } else if (TIER_KEYS[submitted]) {
-      setLoading(true);
-      setTimeout(() => startSession(TIER_KEYS[submitted]), 700);
-    } else {
-      setError('Invalid access key. Use the demo button above to explore.');
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch('/api/auth/validate-key', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: key.trim() }),
+      });
+      const data = await res.json();
+      if (data.valid) {
+        startSession(data.plan);
+      } else {
+        setError('Invalid access key. Use the demo button above to explore.');
+        setLoading(false);
+      }
+    } catch {
+      setError('Could not verify key. Check your connection and try again.');
+      setLoading(false);
     }
   };
 

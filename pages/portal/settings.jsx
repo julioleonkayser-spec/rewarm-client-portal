@@ -115,7 +115,7 @@ function PlanSection({ profile, onSaved }) {
     <div className="space-y-6">
       <div>
         <h2 className="text-base font-semibold text-stone-900 dark:text-stone-100 tracking-tight">Plan</h2>
-        <p className="text-xs text-stone-500 mt-0.5">Subscription tier and billing cycle</p>
+        <p className="text-xs text-stone-500 mt-0.5">Subscription tier and billing cycle. Usage = unique leads in your connected sheet during the monthly cycle.</p>
       </div>
 
       <div className="grid sm:grid-cols-2 gap-4">
@@ -270,13 +270,21 @@ function IntegrationsSection({ profile, onSaved }) {
         </button>
 
         {verifyState && verifyState !== 'loading' && (
-          <div className={`p-4 rounded-xl border text-sm ${verifyState.ok
-            ? 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300'
-            : 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400'}`}
-          >
-            {verifyState.ok
-              ? <>✓ Connected — tab: <strong>{verifyState.tab}</strong>, <strong>{verifyState.rowCount}</strong> {verifyState.rowCount === 1 ? 'lead' : 'leads'} found.</>
-              : verifyState.error}
+          <div className="space-y-2">
+            <div className={`p-4 rounded-xl border text-sm ${verifyState.ok
+              ? 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300'
+              : 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400'}`}
+            >
+              {verifyState.ok
+                ? <>✓ Connected — tab: <strong>{verifyState.tab}</strong>, <strong>{verifyState.rowCount}</strong> {verifyState.rowCount === 1 ? 'lead' : 'leads'} found.</>
+                : verifyState.error}
+            </div>
+            {verifyState.ok && verifyState.missingRecommended?.length > 0 && (
+              <div className="p-3 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/10 text-xs text-amber-800 dark:text-amber-300">
+                <p className="font-semibold mb-1">Recommended columns missing: {verifyState.missingRecommended.join(', ')}</p>
+                <p><code>first_name</code> and <code>last_name</code> personalize call scripts. <code>date_added</code> is set automatically after each call and enables exact usage tracking.</p>
+              </div>
+            )}
           </div>
         )}
       </div>

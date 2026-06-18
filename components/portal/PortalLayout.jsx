@@ -70,8 +70,16 @@ export default function PortalLayout({ children, title }) {
     if (!raw) { router.push('/portal'); return; }
     try {
       const s = JSON.parse(raw);
+      // Sessions with loggedAt expire after 30 days. Sessions without it are legacy
+      // (pre-TTL logins) — leave them valid so existing clients aren't locked out.
+      const TTL_MS = 30 * 24 * 60 * 60 * 1000;
+      if (s.loggedAt && Date.now() - s.loggedAt > TTL_MS) {
+        localStorage.removeItem('rewarm_session');
+        router.push('/portal');
+        return;
+      }
       if (s.plan) setSessionPlan(s.plan);
-    } catch {}
+    } catch { router.push('/portal'); }
 
     fetch('/api/profile')
       .then(r => r.json())
