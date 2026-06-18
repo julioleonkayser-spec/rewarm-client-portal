@@ -1,4 +1,4 @@
-const { getAllRows } = require('../../lib/sheets');
+const { getAllRows, getEffectiveSheetId } = require('../../lib/sheets');
 const { normalize }  = require('../../lib/phone');
 
 export default async function handler(req, res) {
@@ -8,7 +8,8 @@ export default async function handler(req, res) {
   if (!rawPhone) return res.status(400).json({ error: 'phone_number is required' });
   const target = normalize(rawPhone);
   try {
-    const rows = await getAllRows();
+    const sheetId = await getEffectiveSheetId();
+    const rows = await getAllRows(sheetId);
     const headers = rows[0];
     const phoneCol = headers.indexOf('phone_number');
     for (let i = 1; i < rows.length; i++) {

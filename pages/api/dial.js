@@ -1,4 +1,4 @@
-const { getAllRows, getDialerStatus } = require('../../lib/sheets');
+const { getAllRows, getDialerStatus, getEffectiveSheetId } = require('../../lib/sheets');
 const { toE164 } = require('../../lib/phone');
 
 export default async function handler(req, res) {
@@ -12,7 +12,8 @@ export default async function handler(req, res) {
     if ((await getDialerStatus()) === 'PAUSED') {
       return res.status(200).json({ status: 'paused', message: 'Dialer is paused — no call placed' });
     }
-    const rows = await getAllRows();
+    const sheetId = await getEffectiveSheetId();
+    const rows = await getAllRows(sheetId);
     const headers = rows[0];
     const statusCol = headers.indexOf('call_status');
     let lead = null;

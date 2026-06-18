@@ -1,4 +1,4 @@
-const { getAllRows, batchWrite, colLetter, SHEET_TAB } = require('../../lib/sheets');
+const { getAllRows, batchWrite, colLetter, SHEET_TAB, getEffectiveSheetId } = require('../../lib/sheets');
 const { normalize } = require('../../lib/phone');
 
 export default async function handler(req, res) {
@@ -14,7 +14,8 @@ export default async function handler(req, res) {
   if (!rawPhone) return res.status(400).json({ error: 'No phone number in payload' });
   const target = normalize(rawPhone);
   try {
-    const rows = await getAllRows();
+    const sheetId = await getEffectiveSheetId();
+    const rows = await getAllRows(sheetId);
     const headers = rows[0];
     const phoneCol = headers.indexOf('phone_number');
     let sheetsRow = -1;
@@ -59,7 +60,7 @@ export default async function handler(req, res) {
       }
       data.push({ range: SHEET_TAB + '!' + colLetter(recColIdx) + sheetsRow, values: [['=HYPERLINK("' + recordingUrl + '","Play Recording")']] });
     }
-    if (data.length) await batchWrite(data);
+    if (data.length) await batchWrite(data, sheetId);
     return res.status(200).json({ status: 'updated', row: sheetsRow, call_status: callStatus });
   } catch (err) {
     return res.status(500).json({ error: err.message });

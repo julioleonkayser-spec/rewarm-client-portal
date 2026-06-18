@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { agentProfile } from '../../lib/portal/demo-data';
 
 const NAV = [
   {
@@ -36,17 +35,44 @@ const NAV = [
   },
 ];
 
+function getInitials(name) {
+  return (name || '')
+    .split(' ')
+    .filter(Boolean)
+    .map(w => w[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase() || '?';
+}
+
 export default function PortalLayout({ children, title }) {
   const router = useRouter();
   const [dark, setDark] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [profile, setProfile] = useState(null);
+  const [sessionPlan, setSessionPlan] = useState('ReWarm');
 
   useEffect(() => {
     setMounted(true);
     if (localStorage.getItem('rewarm_dark') === 'true') setDark(true);
-    if (!localStorage.getItem('rewarm_session')) router.push('/portal');
+
+    const raw = localStorage.getItem('rewarm_session');
+    if (!raw) { router.push('/portal'); return; }
+    try {
+      const s = JSON.parse(raw);
+      if (s.plan) setSessionPlan(s.plan);
+    } catch {}
+
+    fetch('/api/profile')
+      .then(r => r.json())
+      .then(d => { if (d.profile) setProfile(d.profile); })
+      .catch(() => {});
   }, []);
+
+  const displayName = profile?.name || '';
+  const displayBrokerage = profile?.brokerage || '';
+  const initials = getInitials(displayName);
 
   const toggleDark = () => {
     const next = !dark;
@@ -87,7 +113,7 @@ export default function PortalLayout({ children, title }) {
             </div>
             <div className="min-w-0">
               <p className="text-sm font-semibold text-white leading-tight">ReWarm Portal</p>
-              <p className="text-xs text-stone-500 leading-tight">{agentProfile.plan}</p>
+              <p className="text-xs text-stone-500 leading-tight">{sessionPlan}</p>
             </div>
           </div>
 
@@ -113,18 +139,19 @@ export default function PortalLayout({ children, title }) {
                 </Link>
               );
             })}
-
           </nav>
 
           {/* User profile */}
           <div className="px-3 py-4 border-t border-stone-800">
             <div className="flex items-center gap-3 px-2 py-1.5">
               <div className="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center flex-shrink-0">
-                <span className="text-xs font-bold text-white">{agentProfile.initials}</span>
+                <span className="text-xs font-bold text-white">{initials}</span>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-stone-200 truncate">{agentProfile.name}</p>
-                <p className="text-xs text-stone-500 truncate">{agentProfile.brokerage}</p>
+                <p className="text-sm font-medium text-stone-200 truncate">
+                  {displayName || <span className="text-stone-500 italic text-xs">Set name in Settings</span>}
+                </p>
+                <p className="text-xs text-stone-500 truncate">{displayBrokerage}</p>
               </div>
               <button
                 onClick={logout}
@@ -177,7 +204,7 @@ export default function PortalLayout({ children, title }) {
             </button>
 
             <div className="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center">
-              <span className="text-xs font-bold text-white">{agentProfile.initials}</span>
+              <span className="text-xs font-bold text-white">{initials}</span>
             </div>
           </header>
 

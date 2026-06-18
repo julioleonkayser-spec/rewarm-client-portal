@@ -1,9 +1,6 @@
-const { getAllRows, batchWrite, colLetter, SHEET_TAB } = require('../../lib/sheets');
+const { getAllRows, batchWrite, colLetter, SHEET_TAB, getEffectiveSheetId } = require('../../lib/sheets');
 const { normalize } = require('../../lib/phone');
 
-// Maps a raw call_status value (set by post-call.js / Retell) to a pipeline
-// stage used for grouping in the UI. This is presentation-only — the
-// underlying sheet value in `call_status` is never overwritten by this map.
 function stageFromStatus(status, hasNextAction) {
   const s = (status || '').toLowerCase();
   if (!s) return 'new';
@@ -49,8 +46,10 @@ function rowToLead(headers, row, rowIndex) {
 
 export default async function handler(req, res) {
   try {
+    const sheetId = await getEffectiveSheetId();
+
     if (req.method === 'GET') {
-      const rows = await getAllRows();
+      const rows = await getAllRows(sheetId);
       if (!rows.length) return res.status(200).json({ leads: [] });
       const headers = rows[0];
       const leads = rows.slice(1)
@@ -64,7 +63,7 @@ export default async function handler(req, res) {
       if (!phone) return res.status(400).json({ error: 'phone is required' });
       const target = normalize(phone);
 
-      const rows = await getAllRows();
+      const rows = await getAllRows(sheetId);
       const headers = rows[0];
       const phoneCol = headers.indexOf('phone_number');
       let sheetsRow = -1;
@@ -84,7 +83,7 @@ export default async function handler(req, res) {
         data.push({ range: SHEET_TAB + '!' + colLetter(colIdx) + sheetsRow, values: [[value]] });
       }
       if (!data.length) return res.status(400).json({ error: 'No matching columns to update' });
-      await batchWrite(data);
+      await batchWrite(data, sheetId);
       return res.status(200).json({ status: 'updated', row: sheetsRow });
     }
 

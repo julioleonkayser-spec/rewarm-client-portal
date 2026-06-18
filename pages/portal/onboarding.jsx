@@ -1,6 +1,5 @@
-import { useState } from 'react';
-import { useRouter } from 'next/router';
-import { agentProfile, ONBOARDING_CHECKLIST } from '../../lib/portal/demo-data';
+import { useState, useEffect } from 'react';
+import { ONBOARDING_CHECKLIST } from '../../lib/portal/demo-data';
 import PortalLayout from '../../components/portal/PortalLayout';
 
 const STEPS = [
@@ -10,24 +9,42 @@ const STEPS = [
   { id: 4, title: "You're ready", subtitle: 'Time to start reactivating',         time: 'Go' },
 ];
 
-const DEMO_CSV = `first_name,last_name,phone_number,lead_source,original_interest,agent_name,transfer_number
-Marcus,Webb,(512) 441-7823,Database,3BR home in Round Rock under $800K,Sarah Chen,(512) 555-0100
-Jennifer,Rodriguez,(512) 334-9021,Database,Selling in Cedar Park - upsizing,Sarah Chen,(512) 555-0100
-David,Kim,(512) 709-4512,Referral,Relocating from SF - cash buyer,Sarah Chen,(512) 555-0100`;
+const REQUIRED_COLUMNS = [
+  'first_name', 'last_name', 'phone_number',
+  'lead_source', 'original_interest', 'agent_name', 'transfer_number',
+];
 
 export default function Onboarding() {
-  const router = useRouter();
   const [step, setStep] = useState(1);
   const [checklist, setChecklist] = useState(ONBOARDING_CHECKLIST);
-  const [pastedLeads, setPastedLeads] = useState('');
+  const [firstName, setFirstName] = useState('');
   const [market, setMarket] = useState({
-    city: agentProfile.market,
-    priceRange: agentProfile.priceRange,
+    city: '',
+    priceRange: '',
     leadTypes: ['buyers', 'sellers'],
-    specialties: agentProfile.specialties.join(', '),
+    specialties: '',
   });
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/profile')
+      .then(r => r.json())
+      .then(d => {
+        if (!d.profile) return;
+        const p = d.profile;
+        setFirstName(p.name?.split(' ')[0] || '');
+        setMarket(m => ({
+          ...m,
+          city: p.market || m.city,
+          priceRange: p.priceRange || m.priceRange,
+          specialties: Array.isArray(p.specialties)
+            ? p.specialties.join(', ')
+            : p.specialties || m.specialties,
+        }));
+      })
+      .catch(() => {});
+  }, []);
 
   const toggleCheck = (id) => {
     setChecklist(list => list.map(item => item.id === id ? { ...item, done: !item.done } : item));
@@ -50,7 +67,7 @@ export default function Onboarding() {
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch {
-      // Stay silent in the UI here; the Settings page surfaces save errors explicitly.
+      // Settings page surfaces save errors explicitly; stay silent here.
     } finally {
       setSaving(false);
     }
@@ -76,7 +93,7 @@ export default function Onboarding() {
         {/* Progress */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-2">
-            {STEPS.map((s, i) => (
+            {STEPS.map((s) => (
               <button
                 key={s.id}
                 onClick={() => setStep(s.id)}
@@ -119,7 +136,7 @@ export default function Onboarding() {
                   </svg>
                 </div>
                 <h1 className="text-xl font-bold text-stone-900 dark:text-stone-100 tracking-tight mb-1">
-                  Welcome, {agentProfile.name.split(' ')[0]}
+                  {firstName ? `Welcome, ${firstName}` : 'Welcome'}
                 </h1>
                 <p className="text-sm text-stone-500 dark:text-stone-400 mb-8 leading-relaxed">
                   Your ReWarm portal is live. Here's what you'll set up to run your first reactivation campaign.
@@ -161,20 +178,32 @@ export default function Onboarding() {
               <div>
                 <h1 className="text-xl font-bold text-stone-900 dark:text-stone-100 tracking-tight mb-1">Import your leads</h1>
                 <p className="text-sm text-stone-500 dark:text-stone-400 mb-6 leading-relaxed">
-                  Your leads live in your Google Sheet — that's the single source of truth your calling agent reads from. Paste new rows below to add them, or add them directly in the Sheet.
+                  Add your leads directly to your Google Sheet — that's the single source of truth your AI calling agent reads from. New rows appear in the dashboard automatically on the next refresh.
                 </p>
 
                 <div className="space-y-4">
-                  <div>
-                    <label className="block text-xs font-semibold text-stone-600 dark:text-stone-400 uppercase tracking-wide mb-2">Paste CSV data</label>
-                    <textarea
-                      rows={6}
-                      value={pastedLeads}
-                      onChange={e => setPastedLeads(e.target.value)}
-                      placeholder={DEMO_CSV}
-                      className="w-full px-4 py-3 text-sm font-mono border border-stone-200 dark:border-stone-700 rounded-xl bg-stone-50 dark:bg-stone-800 text-stone-800 dark:text-stone-200 placeholder-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none"
-                    />
-                    <p className="mt-1.5 text-xs text-stone-400">Required columns: first_name, last_name, phone_number, lead_source, original_interest, agent_name, transfer_number</p>
+                  <div className="rounded-xl border border-stone-200 dark:border-stone-700 p-4 space-y-3">
+                    <p className="text-xs font-semibold text-stone-700 dark:text-stone-300 uppercase tracking-wide">Required columns</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {REQUIRED_COLUMNS.map(col => (
+                        <code key={col} className="text-xs bg-stone-50 dark:bg-stone-800 border border-stone-100 dark:border-stone-700 rounded-lg px-2 py-1.5 text-stone-600 dark:text-stone-400 font-mono">
+                          {col}
+                        </code>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="p-4 bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/30 rounded-xl">
+                    <p className="text-xs text-amber-800 dark:text-amber-400 leading-relaxed">
+                      <span className="font-semibold">Tip:</span> Paste rows directly into your Google Sheet. The dashboard refreshes every 30s and picks up new entries automatically.
+                    </p>
+                  </div>
+
+                  <div className="p-4 bg-stone-50 dark:bg-stone-800/50 rounded-xl border border-stone-100 dark:border-stone-700">
+                    <p className="text-xs text-stone-500 dark:text-stone-400">
+                      Haven't connected your sheet yet?{' '}
+                      <a href="/portal/settings" className="text-amber-600 hover:underline font-medium">Go to Settings → Integrations</a> first.
+                    </p>
                   </div>
                 </div>
               </div>
@@ -252,7 +281,7 @@ export default function Onboarding() {
                   </svg>
                 </div>
                 <h1 className="text-xl font-bold text-stone-900 dark:text-stone-100 tracking-tight mb-2">
-                  You're ready to go, {agentProfile.name.split(' ')[0]}
+                  {firstName ? `You're ready to go, ${firstName}` : "You're ready to go"}
                 </h1>
                 <p className="text-sm text-stone-500 dark:text-stone-400 mb-8 leading-relaxed">
                   Your agent calls leads straight from your Google Sheet, personalized to each one — name, interest, and source.

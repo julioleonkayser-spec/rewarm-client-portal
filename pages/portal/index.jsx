@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useRouter } from 'next/router';
-import { agentProfile } from '../../lib/portal/demo-data';
 
 const DEMO_KEY = 'REWARM-DEMO-2024';
 
@@ -19,13 +18,7 @@ export default function PortalLogin() {
   const [loading, setLoading] = useState(false);
 
   const startSession = (plan = 'Demo') => {
-    localStorage.setItem('rewarm_session', JSON.stringify({
-      name: agentProfile.name,
-      email: agentProfile.email,
-      brokerage: agentProfile.brokerage,
-      joinDate: agentProfile.joinDate,
-      plan,
-    }));
+    localStorage.setItem('rewarm_session', JSON.stringify({ plan }));
     router.push('/portal/dashboard');
   };
 
