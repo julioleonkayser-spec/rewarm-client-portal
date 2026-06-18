@@ -2,8 +2,21 @@ import { google } from 'googleapis';
 
 const SHEET_TAB = process.env.SHEET_TAB_NAME || 'lead-reactivation-sheet';
 
+// Accept either a single GOOGLE_SERVICE_ACCOUNT_JSON env var, or the original
+// project's separate GOOGLE_SERVICE_ACCOUNT_EMAIL + GOOGLE_PRIVATE_KEY vars.
+function getCredentials() {
+  if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
+    return JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
+  }
+  const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+  let key = process.env.GOOGLE_PRIVATE_KEY;
+  if (!email || !key) return {};
+  key = key.replace(/\\n/g, '\n');
+  return { client_email: email, private_key: key };
+}
+
 function getSheets() {
-  const creds = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON || '{}');
+  const creds = getCredentials();
   const auth = new google.auth.GoogleAuth({
     credentials: creds,
     scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
@@ -115,7 +128,7 @@ export default async function handler(req, res) {
   try {
     const sheets = getSheets();
     const result = await sheets.spreadsheets.values.get({
-      spreadsheetId: process.env.GOOGLE_SHEETS_ID,
+      spreadsheetId: process.env.GOOGLE_SHEETS_ID || process.env.GOOGLE_SHEET_ID,
       range: `${SHEET_TAB}!A:R`,
     });
     const data = processRows(result.data.values);
