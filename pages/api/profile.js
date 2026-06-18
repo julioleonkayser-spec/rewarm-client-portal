@@ -29,9 +29,16 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'PUT') {
-      const incoming = req.body || {};
+      const { plan_name, ...rest } = req.body || {};
       const existing = (await getProfile()) || DEFAULT_PROFILE;
-      const merged = { ...existing, ...incoming };
+      // Only allow setting plan_name when no paid plan is stored yet (e.g., initial login).
+      // Clients cannot downgrade or switch their own paid plan through the UI.
+      const allowPlanChange = !existing.plan_name || existing.plan_name === 'Demo';
+      const merged = {
+        ...existing,
+        ...rest,
+        ...(allowPlanChange && plan_name ? { plan_name } : {}),
+      };
       await setProfile(merged);
       return res.status(200).json({ profile: merged });
     }

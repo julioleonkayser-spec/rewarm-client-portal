@@ -19,11 +19,6 @@ export default function PortalLogin() {
     router.push('/portal/dashboard');
   };
 
-  const handleDemoAccess = () => {
-    setLoading(true);
-    setTimeout(() => startSession('Demo'), 700);
-  };
-
   const handleKeySubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -38,7 +33,7 @@ export default function PortalLogin() {
       if (data.valid) {
         startSession(data.plan);
       } else {
-        setError('Invalid access key. Use the demo button above to explore.');
+        setError('Invalid access key. Check your key and try again.');
         setLoading(false);
       }
     } catch {
@@ -114,34 +109,8 @@ export default function PortalLogin() {
               Client portal access
             </h1>
             <p className="text-stone-500 text-sm leading-relaxed">
-              Purchased via Gumroad? Enter your access key below. Or try the demo portal — no account needed.
+              Enter your access key to access the portal.
             </p>
-          </div>
-
-          {/* Demo CTA */}
-          <button
-            onClick={handleDemoAccess}
-            disabled={loading}
-            className="w-full py-3.5 px-4 bg-amber-600 hover:bg-amber-700 active:scale-[0.99] text-white text-sm font-semibold rounded-xl transition-all disabled:opacity-60 disabled:cursor-not-allowed mb-6 flex items-center justify-center gap-2 shadow-sm shadow-amber-200"
-          >
-            {loading ? (
-              <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-              </svg>
-            ) : (
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-                <path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4" />
-                <polyline points="10 17 15 12 10 7" /><line x1="15" y1="12" x2="3" y2="12" />
-              </svg>
-            )}
-            {loading ? 'Opening portal…' : 'Enter Demo Portal'}
-          </button>
-
-          <div className="flex items-center gap-3 mb-6">
-            <div className="flex-1 h-px bg-stone-200" />
-            <span className="text-xs text-stone-400 font-medium whitespace-nowrap">or enter access key</span>
-            <div className="flex-1 h-px bg-stone-200" />
           </div>
 
           <form onSubmit={handleKeySubmit} className="space-y-3">
@@ -174,21 +143,6 @@ export default function PortalLogin() {
               Access Portal
             </button>
           </form>
-
-          {/* Gumroad integration callout */}
-          <div className="mt-8 p-4 bg-amber-50 border border-amber-100 rounded-xl">
-            <div className="flex items-start gap-2.5">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 flex-shrink-0 mt-0.5">
-                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-              </svg>
-              <div>
-                <p className="text-xs font-semibold text-amber-800 mb-0.5">Gumroad buyers</p>
-                <p className="text-xs text-amber-700 leading-relaxed">
-                  Your access key was sent in your Gumroad receipt email.
-                </p>
-              </div>
-            </div>
-          </div>
 
           <p className="mt-8 text-center text-xs text-stone-400">
             Powered by <span className="font-semibold text-stone-600">ReWarm</span> · The AI calling system for real estate agents

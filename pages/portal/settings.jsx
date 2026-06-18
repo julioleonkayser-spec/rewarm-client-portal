@@ -79,7 +79,6 @@ const WARN_COLORS = {
 };
 
 function PlanSection({ profile, onSaved }) {
-  const [planName, setPlanName]     = useState(profile?.plan_name || 'Demo');
   const [cycleStart, setCycleStart] = useState(profile?.billing_cycle_start || '');
   const [usage, setUsage]           = useState(null);
   const [loadingUsage, setLoadingUsage] = useState(true);
@@ -99,7 +98,7 @@ function PlanSection({ profile, onSaved }) {
       const res = await fetch('/api/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan_name: planName, billing_cycle_start: cycleStart }),
+        body: JSON.stringify({ billing_cycle_start: cycleStart }),
       });
       if (!res.ok) throw new Error('Save failed');
       setSaveStatus('saved');
@@ -119,7 +118,13 @@ function PlanSection({ profile, onSaved }) {
       </div>
 
       <div className="grid sm:grid-cols-2 gap-4">
-        <SelectField label="Plan" value={planName} onChange={setPlanName} options={PLAN_OPTIONS} />
+        <div>
+          <label className="block text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wide mb-1.5">Plan</label>
+          <div className="px-4 py-3 text-sm border border-stone-200 dark:border-stone-700 rounded-xl bg-stone-50 dark:bg-stone-800 text-stone-700 dark:text-stone-300">
+            {profile?.plan_name || '—'}
+          </div>
+          <p className="mt-1 text-xs text-stone-400">Assigned at purchase — contact support to change.</p>
+        </div>
         <div>
           <label className="block text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wide mb-1.5">Billing Cycle Start</label>
           <input

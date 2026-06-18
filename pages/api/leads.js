@@ -72,17 +72,30 @@ export default async function handler(req, res) {
       }
       if (sheetsRow === -1) return res.status(404).json({ error: 'Lead not found' });
 
-      const updates = {};
-      if (notes !== undefined) updates.notes = notes;
-      if (nextAction !== undefined) updates.next_action = nextAction;
-
       const data = [];
-      for (const [field, value] of Object.entries(updates)) {
-        const colIdx = headers.indexOf(field);
-        if (colIdx === -1) continue;
-        data.push({ range: SHEET_TAB + '!' + colLetter(colIdx) + sheetsRow, values: [[value]] });
+      let newColsAdded = 0;
+
+      if (notes !== undefined) {
+        let colIdx = headers.indexOf('notes');
+        if (colIdx === -1) {
+          colIdx = headers.length + newColsAdded;
+          newColsAdded++;
+          data.push({ range: SHEET_TAB + '!' + colLetter(colIdx) + '1', values: [['notes']] });
+        }
+        data.push({ range: SHEET_TAB + '!' + colLetter(colIdx) + sheetsRow, values: [[notes]] });
       }
-      if (!data.length) return res.status(400).json({ error: 'No matching columns to update' });
+
+      if (nextAction !== undefined) {
+        let colIdx = headers.indexOf('next_action');
+        if (colIdx === -1) {
+          colIdx = headers.length + newColsAdded;
+          newColsAdded++;
+          data.push({ range: SHEET_TAB + '!' + colLetter(colIdx) + '1', values: [['next_action']] });
+        }
+        data.push({ range: SHEET_TAB + '!' + colLetter(colIdx) + sheetsRow, values: [[nextAction]] });
+      }
+
+      if (!data.length) return res.status(400).json({ error: 'Nothing to update' });
       await batchWrite(data, sheetId);
       return res.status(200).json({ status: 'updated', row: sheetsRow });
     }
