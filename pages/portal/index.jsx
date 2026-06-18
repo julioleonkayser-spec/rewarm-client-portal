@@ -7,14 +7,16 @@ export default function PortalLogin() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const startSession = (plan = 'Demo') => {
+  const startSession = async (plan = 'Demo') => {
     localStorage.setItem('rewarm_session', JSON.stringify({ plan, loggedAt: Date.now() }));
     if (plan !== 'Demo') {
-      fetch('/api/profile', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan_name: plan }),
-      }).catch(() => {});
+      try {
+        await fetch('/api/profile', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ plan_name: plan }),
+        });
+      } catch {}
     }
     router.push('/portal/dashboard');
   };
@@ -31,7 +33,7 @@ export default function PortalLogin() {
       });
       const data = await res.json();
       if (data.valid) {
-        startSession(data.plan);
+        await startSession(data.plan);
       } else {
         setError('Invalid access key. Check your key and try again.');
         setLoading(false);
