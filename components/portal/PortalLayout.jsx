@@ -114,24 +114,6 @@ export default function PortalLayout({ children, title }) {
               );
             })}
 
-            <div className="pt-4 mt-3 border-t border-stone-800">
-              <Link
-                href="/portal/onboarding"
-                onClick={() => setSidebarOpen(false)}
-                className={`
-                  flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
-                  ${router.pathname === '/portal/onboarding'
-                    ? 'bg-stone-800 text-amber-400 border-l-2 border-amber-500 pl-2.5'
-                    : 'text-stone-400 hover:text-stone-200 hover:bg-stone-800/60'
-                  }
-                `}
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 flex-shrink-0">
-                  <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
-                </svg>
-                Setup Guide
-              </Link>
-            </div>
           </nav>
 
           {/* User profile */}

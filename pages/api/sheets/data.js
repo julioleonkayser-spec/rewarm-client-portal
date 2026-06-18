@@ -16,16 +16,22 @@ function processRows(rows) {
   if (!rows || rows.length < 2) return null;
   const hdrs = rows[0];
   const ix = n => hdrs.indexOf(n);
-  const records = rows.slice(1).map(r => ({
+
+  const allLeads = rows.slice(1).map((r, i) => ({
+    rowIndex: i + 2,
+    name:     [r[ix('first_name')] || '', r[ix('last_name')] || ''].join(' ').trim() || null,
     phone:    r[ix('phone_number')] || '',
     source:   r[ix('lead_source')]  || '',
     interest: r[ix('original_interest')] || '',
     dateStr:  r[ix('last_called')] || r[ix('date_added')] || '',
     status:   normStatus(r[ix('call_status')] || ''),
     quality:  parseFloat(r[ix('interest_level')] || r[ix('sentiment_score')] || '0') || 0,
-  })).filter(r => r.status);
+  }));
 
-  if (records.length === 0) return null;
+  const records = allLeads.filter(r => r.status);
+  const pending = allLeads.filter(r => !r.status).length;
+
+  if (records.length === 0 && pending === 0) return null;
 
   const total = records.length;
   const hot   = records.filter(r => r.status === 'HOT').length;
@@ -57,7 +63,7 @@ function processRows(rows) {
 
   return {
     status: 'ok',
-    kpis: { total, hot, hotPct: total ? Math.round(hot / total * 100) : 0, avgQ, roi: hot * 0.30 * 7500 },
+    kpis: { total, hot, hotPct: total ? Math.round(hot / total * 100) : 0, avgQ, roi: hot * 0.30 * 7500, pending },
     statusBreakdown: [
       { name: 'HOT',  value: hot,  color: '#10B981' },
       { name: 'WARM', value: warm, color: '#FBBF24' },
@@ -67,6 +73,7 @@ function processRows(rows) {
     dailyVolume,
     qualityTrend,
     recentCalls: records.slice(-10).reverse(),
+    allLeads: allLeads.slice(0, 200),
     lastUpdated: new Date().toISOString(),
   };
 }
@@ -103,6 +110,8 @@ export default async function handler(req, res) {
         status: 'empty',
         sheetId,
         tab: SHEET_TAB,
+        kpis: { total: 0, hot: 0, hotPct: 0, avgQ: 0, roi: 0, pending: 0 },
+        allLeads: [],
         serviceAccountEmail: getServiceAccountEmail(),
       });
     }
@@ -114,6 +123,8 @@ export default async function handler(req, res) {
         sheetId,
         tab: SHEET_TAB,
         rowCount: rows.length - 1,
+        kpis: { total: 0, hot: 0, hotPct: 0, avgQ: 0, roi: 0, pending: 0 },
+        allLeads: [],
         serviceAccountEmail: getServiceAccountEmail(),
       });
     }

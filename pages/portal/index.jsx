@@ -94,7 +94,7 @@ export default function PortalLogin() {
 
         <div className="relative z-10 border-t border-stone-800 pt-8">
           <p className="text-xs text-stone-500 leading-relaxed">
-            Bring your own Retell AI and Anthropic API keys — full control, no markup, no subscription.
+            Your results, live from your Google Sheet. No demo data, no delays.
           </p>
         </div>
       </div>

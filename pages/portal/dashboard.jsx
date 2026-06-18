@@ -1,222 +1,257 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import PortalLayout from '../../components/portal/PortalLayout';
-import PageHeader from '../../components/portal/PageHeader';
 import {
-  BarChart, Bar, AreaChart, Area, PieChart, Pie, Cell,
+  AreaChart, Area, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
 
-const STATUS_COLOR = { HOT: '#10B981', WARM: '#FBBF24', COLD: '#9CA3AF', SKIP: '#D1D5DB' };
+const STATUS_COLOR = { HOT: '#10B981', WARM: '#FBBF24', COLD: '#9CA3AF', SKIP: '#D1D5DB', RETRY: '#a78bfa' };
+const STATUS_BG    = { HOT: '#d1fae5', WARM: '#fef3c7', COLD: '#f3f4f6', SKIP: '#e5e7eb', RETRY: '#ede9fe' };
 
-const CustomTooltip = ({ active, payload, label }) => {
+function StatusBadge({ status }) {
+  if (!status) return <span className="text-xs text-stone-400 italic">Pending</span>;
+  return (
+    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md whitespace-nowrap"
+      style={{ background: STATUS_BG[status] || '#f3f4f6', color: STATUS_COLOR[status] || '#6b7280' }}>
+      {status}
+    </span>
+  );
+}
+
+const Tip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-xl shadow-lg px-4 py-3 text-sm">
-      <p className="font-semibold text-stone-800 dark:text-stone-100 mb-1">{label}</p>
-      {payload.map(e => (
-        <p key={e.name} style={{ color: e.color || e.fill }} className="text-xs capitalize">
-          {e.name}: <span className="font-semibold">{e.value}</span>
-        </p>
-      ))}
+    <div className="bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-xl shadow-lg px-3 py-2 text-xs">
+      <p className="font-semibold mb-1">{label}</p>
+      {payload.map(e => <p key={e.name} style={{ color: e.color || e.fill }}>{e.name}: <b>{e.value}</b></p>)}
     </div>
   );
 };
 
+function KpiCard({ label, value, sub, accent, ring }) {
+  return (
+    <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl p-5">
+      <div className={`inline-flex items-center justify-center min-w-10 h-10 px-2.5 rounded-xl mb-3 ${ring}`}>
+        <span className={`text-xl font-bold ${accent}`}>{value}</span>
+      </div>
+      <p className="text-xs font-semibold text-stone-700 dark:text-stone-300 mb-0.5">{label}</p>
+      <p className="text-xs text-stone-400 dark:text-stone-500">{sub}</p>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastRefresh, setLastRefresh] = useState(null);
+  const [filter, setFilter] = useState('ALL');
 
-  useEffect(() => {
-    let mounted = true;
-    fetch('/api/sheets/data')
-      .then(res => res.json())
-      .then(d => { if (mounted) { setData(d); setLoading(false); } })
-      .catch(() => setLoading(false));
-    return () => { mounted = false; };
+  const load = useCallback(async (manual = false) => {
+    if (manual) setRefreshing(true);
+    try {
+      const res = await fetch('/api/sheets/data?t=' + Date.now());
+      const d = await res.json();
+      setData(d);
+      setLastRefresh(new Date());
+    } catch {}
+    setLoading(false);
+    setRefreshing(false);
   }, []);
 
-  const now = new Date();
-  const hour = now.getHours();
-  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
-  const dateStr = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  useEffect(() => {
+    load();
+    const id = setInterval(() => load(), 30000);
+    return () => clearInterval(id);
+  }, [load]);
 
   if (loading) {
     return (
       <PortalLayout title="Dashboard">
-        <div className="max-w-6xl mx-auto py-24 text-center text-sm text-stone-400">Loading your results…</div>
+        <div className="max-w-6xl mx-auto py-24 text-center text-sm text-stone-400">Loading…</div>
       </PortalLayout>
     );
   }
 
   const sheetStatus = data?.status;
-  const kpis = data?.kpis || { total: 0, hot: 0, hotPct: 0, avgQ: 0, roi: 0 };
+  const kpis = data?.kpis || { total: 0, hot: 0, hotPct: 0, avgQ: 0, roi: 0, pending: 0 };
   const statusBreakdown = data?.statusBreakdown || [];
   const dailyVolume = data?.dailyVolume || [];
-  const qualityTrend = data?.qualityTrend || [];
-  const recentCalls = data?.recentCalls || [];
+  const allLeads = data?.allLeads || [];
 
-  const KPI_CARDS = [
-    { label: 'Total Calls',  value: kpis.total,            sub: 'logged from your Sheet', accent: 'text-stone-900 dark:text-stone-100', ring: 'bg-stone-100 dark:bg-stone-800' },
-    { label: 'Hot Leads',    value: kpis.hot,               sub: `${kpis.hotPct}% of calls`, accent: 'text-emerald-600 dark:text-emerald-400', ring: 'bg-emerald-50 dark:bg-emerald-900/20' },
-    { label: 'Avg Quality',  value: kpis.avgQ,               sub: 'interest score (0–10)', accent: 'text-amber-600 dark:text-amber-400', ring: 'bg-amber-50 dark:bg-amber-900/20' },
-    { label: 'Est. ROI',     value: `$${Math.round(kpis.roi).toLocaleString()}`, sub: 'from hot leads this period', accent: 'text-orange-600 dark:text-orange-400', ring: 'bg-orange-50 dark:bg-orange-900/20' },
-  ];
+  const filterOptions = ['ALL', 'HOT', 'WARM', 'COLD', 'PENDING'];
+  const filtered = filter === 'ALL' ? allLeads
+    : filter === 'PENDING' ? allLeads.filter(l => !l.status)
+    : allLeads.filter(l => l.status === filter);
 
   return (
     <PortalLayout title="Dashboard">
-      <div className="max-w-6xl mx-auto space-y-8">
+      <div className="max-w-6xl mx-auto space-y-6">
 
-        <PageHeader
-          eyebrow={dateStr}
-          title={greeting}
-          subtitle="Real results from your reactivation calls, pulled live from your Google Sheet."
-        >
-          <Link
-            href="/portal/crm"
-            className="inline-flex items-center gap-2 py-2.5 px-4 bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm shadow-amber-200/60 dark:shadow-none"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-              <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" />
-            </svg>
-            View pipeline
-          </Link>
-        </PageHeader>
-
-        {sheetStatus === 'not_configured' && (
-          <div className="p-5 rounded-xl bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-900/40 text-sm text-amber-800 dark:text-amber-300">
-            <p className="font-semibold mb-1">No sheet connected yet.</p>
-            <p>Go to <a href="/portal/settings#integrations" className="underline font-medium">Settings → Integrations</a> to connect your Google Sheet and start seeing real data here.</p>
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-lg font-bold text-stone-900 dark:text-stone-100 tracking-tight">Lead Dashboard</h1>
+            {lastRefresh && (
+              <p className="text-xs text-stone-400 mt-0.5">
+                Updated {lastRefresh.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · auto-refreshes every 30s
+              </p>
+            )}
           </div>
-        )}
-        {sheetStatus === 'empty' && (
-          <div className="p-5 rounded-xl bg-stone-50 dark:bg-stone-800/50 border border-stone-200 dark:border-stone-700 text-sm text-stone-600 dark:text-stone-400">
-            <p className="font-semibold mb-1">Sheet connected — no calls logged yet.</p>
-            <p>Your sheet is readable. Add leads and run calls to see your dashboard populate with real data.</p>
+          <button
+            onClick={() => load(true)}
+            disabled={refreshing}
+            className="flex items-center gap-2 px-3 py-2 text-xs font-medium bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-400 rounded-xl transition-colors disabled:opacity-50"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+              className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`}>
+              <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+              <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+            </svg>
+            {refreshing ? 'Refreshing…' : 'Refresh'}
+          </button>
+        </div>
+
+        {/* Status banners */}
+        {sheetStatus === 'not_configured' && (
+          <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-900/40 text-sm text-amber-800 dark:text-amber-300">
+            <span className="font-semibold">No sheet connected.</span>{' '}
+            <Link href="/portal/settings" className="underline font-medium">Go to Settings → Integrations</Link> to connect your Google Sheet.
           </div>
         )}
         {(sheetStatus === 'forbidden' || sheetStatus === 'not_found') && (
-          <div className="p-5 rounded-xl bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900/40 text-sm text-red-700 dark:text-red-400">
-            <p className="font-semibold mb-1">{sheetStatus === 'forbidden' ? 'Permission denied.' : 'Sheet not found.'}</p>
-            <p>{sheetStatus === 'forbidden' ? 'Share your sheet with the service account (Viewer). ' : 'Check the sheet ID in '}
-              <a href="/portal/settings" className="underline font-medium">Settings → Integrations</a>.
-            </p>
-          </div>
-        )}
-        {sheetStatus === 'error' && (
-          <div className="p-4 rounded-xl bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900/40 text-sm text-red-700 dark:text-red-400">
-            Could not read your sheet. <a href="/portal/settings" className="underline font-medium">Check your connection in Settings</a>.
+          <div className="p-4 rounded-xl bg-red-50 dark:bg-red-900/10 border border-red-200 text-sm text-red-700 dark:text-red-400">
+            <span className="font-semibold">{sheetStatus === 'forbidden' ? 'Permission denied.' : 'Sheet not found.'}</span>{' '}
+            <Link href="/portal/settings" className="underline font-medium">Check Settings → Integrations</Link>.
           </div>
         )}
 
         {/* KPI cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          {KPI_CARDS.map((card) => (
-            <div key={card.label} className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl p-5 hover:border-stone-300 dark:hover:border-stone-700 transition-colors">
-              <div className={`inline-flex items-center justify-center min-w-10 h-10 px-2.5 rounded-xl mb-3 ${card.ring}`}>
-                <span className={`text-xl font-bold ${card.accent}`}>{card.value}</span>
-              </div>
-              <p className="text-xs font-semibold text-stone-700 dark:text-stone-300 mb-0.5">{card.label}</p>
-              <p className="text-xs text-stone-400 dark:text-stone-500">{card.sub}</p>
-            </div>
-          ))}
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+          <KpiCard label="Total Leads" value={allLeads.length}  sub="in your sheet"                accent="text-stone-900 dark:text-stone-100"     ring="bg-stone-100 dark:bg-stone-800" />
+          <KpiCard label="Called"      value={kpis.total}       sub="with a result logged"         accent="text-blue-600 dark:text-blue-400"        ring="bg-blue-50 dark:bg-blue-900/20" />
+          <KpiCard label="Pending"     value={kpis.pending}     sub="not yet called"               accent="text-stone-500 dark:text-stone-400"      ring="bg-stone-100 dark:bg-stone-800" />
+          <KpiCard label="Hot Leads"   value={kpis.hot}         sub={`${kpis.hotPct}% of called`}  accent="text-emerald-600 dark:text-emerald-400"  ring="bg-emerald-50 dark:bg-emerald-900/20" />
+          <KpiCard label="Avg Quality" value={kpis.avgQ || '—'} sub="interest score (0–10)"        accent="text-amber-600 dark:text-amber-400"      ring="bg-amber-50 dark:bg-amber-900/20" />
         </div>
 
-        {/* Charts */}
-        <div className="grid lg:grid-cols-2 gap-6">
-          <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl p-6">
-            <div className="mb-5">
-              <h2 className="text-sm font-semibold text-stone-800 dark:text-stone-200 tracking-tight">Call Outcomes</h2>
-              <p className="text-xs text-stone-400 mt-0.5">{kpis.total} calls, by result</p>
+        {/* Charts — only when there is called data */}
+        {statusBreakdown.length > 0 && (
+          <div className="grid lg:grid-cols-2 gap-4">
+            <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl p-5">
+              <h2 className="text-sm font-semibold text-stone-800 dark:text-stone-200 mb-1">Call Outcomes</h2>
+              <p className="text-xs text-stone-400 mb-4">{kpis.total} calls by result</p>
+              <div className="flex items-center gap-6">
+                <ResponsiveContainer width={140} height={140}>
+                  <PieChart>
+                    <Pie data={statusBreakdown} dataKey="value" innerRadius={42} outerRadius={65} paddingAngle={2}>
+                      {statusBreakdown.map(s => <Cell key={s.name} fill={s.color || STATUS_COLOR[s.name]} />)}
+                    </Pie>
+                    <Tooltip content={<Tip />} />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="space-y-1.5">
+                  {statusBreakdown.map(s => (
+                    <div key={s.name} className="flex items-center gap-2 text-xs">
+                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: s.color }} />
+                      <span className="text-stone-600 dark:text-stone-400">{s.name}</span>
+                      <span className="font-semibold text-stone-800 dark:text-stone-200 ml-auto pl-2">{s.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
-            {statusBreakdown.length === 0 ? (
-              <p className="text-sm text-stone-400 py-16 text-center">No calls logged yet.</p>
-            ) : (
-              <ResponsiveContainer width="100%" height={220}>
-                <PieChart>
-                  <Pie data={statusBreakdown} dataKey="value" nameKey="name" innerRadius={55} outerRadius={85} paddingAngle={2}>
-                    {statusBreakdown.map(s => <Cell key={s.name} fill={s.color || STATUS_COLOR[s.name]} />)}
-                  </Pie>
-                  <Tooltip content={<CustomTooltip />} />
-                </PieChart>
+
+            <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl p-5">
+              <h2 className="text-sm font-semibold text-stone-800 dark:text-stone-200 mb-1">Call Volume</h2>
+              <p className="text-xs text-stone-400 mb-4">Last 30 days</p>
+              <ResponsiveContainer width="100%" height={160}>
+                <AreaChart data={dailyVolume} margin={{ top: 4, right: 0, left: -24, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="gv" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#d97706" stopOpacity={0.2}/>
+                      <stop offset="95%" stopColor="#d97706" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f4" vertical={false}/>
+                  <XAxis dataKey="date" tick={{ fontSize: 9, fill: '#78716c' }} axisLine={false} tickLine={false} interval={5}/>
+                  <YAxis tick={{ fontSize: 10, fill: '#78716c' }} axisLine={false} tickLine={false} allowDecimals={false}/>
+                  <Tooltip content={<Tip />}/>
+                  <Area type="monotone" dataKey="calls" name="Calls" stroke="#d97706" strokeWidth={2} fill="url(#gv)" dot={false}/>
+                </AreaChart>
               </ResponsiveContainer>
-            )}
-            <div className="flex items-center justify-center gap-4 mt-2">
-              {statusBreakdown.map(s => (
-                <span key={s.name} className="inline-flex items-center gap-1.5 text-xs text-stone-500 dark:text-stone-400">
-                  <span className="w-2 h-2 rounded-full" style={{ background: s.color || STATUS_COLOR[s.name] }} />
-                  {s.name} ({s.value})
-                </span>
+            </div>
+          </div>
+        )}
+
+        {/* Leads table */}
+        <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-stone-100 dark:border-stone-800">
+            <div>
+              <h2 className="text-sm font-semibold text-stone-800 dark:text-stone-200">All Leads</h2>
+              <p className="text-xs text-stone-400 mt-0.5">{filtered.length} of {allLeads.length} shown</p>
+            </div>
+            <div className="flex gap-1 flex-wrap justify-end">
+              {filterOptions.map(f => (
+                <button key={f} onClick={() => setFilter(f)}
+                  className={`px-2.5 py-1 text-xs font-medium rounded-lg transition-colors ${
+                    filter === f
+                      ? 'bg-stone-800 dark:bg-stone-100 text-white dark:text-stone-900'
+                      : 'text-stone-500 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800'
+                  }`}
+                >{f}</button>
               ))}
             </div>
           </div>
 
-          <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl p-6">
-            <div className="mb-5">
-              <h2 className="text-sm font-semibold text-stone-800 dark:text-stone-200 tracking-tight">Call Volume</h2>
-              <p className="text-xs text-stone-400 mt-0.5">Last 30 days</p>
+          {allLeads.length === 0 ? (
+            <div className="py-16 text-center">
+              <p className="text-sm font-medium text-stone-600 dark:text-stone-400 mb-2">
+                {sheetStatus === 'not_configured' ? 'Connect your sheet to see leads' : 'No leads in your sheet yet'}
+              </p>
+              {sheetStatus === 'not_configured' ? (
+                <Link href="/portal/settings" className="text-xs text-amber-600 underline">Go to Settings → Integrations</Link>
+              ) : (
+                <p className="text-xs text-stone-400">Add rows to your Google Sheet — they appear here automatically.</p>
+              )}
             </div>
-            <ResponsiveContainer width="100%" height={220}>
-              <AreaChart data={dailyVolume} margin={{ top: 4, right: 0, left: -20, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="gv" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#d97706" stopOpacity={0.2}/><stop offset="95%" stopColor="#d97706" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f4" vertical={false} />
-                <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#78716c' }} axisLine={false} tickLine={false} interval={4} />
-                <YAxis tick={{ fontSize: 11, fill: '#78716c' }} axisLine={false} tickLine={false} allowDecimals={false} />
-                <Tooltip content={<CustomTooltip />} />
-                <Area type="monotone" dataKey="calls" name="Calls" stroke="#d97706" strokeWidth={2} fill="url(#gv)" dot={false} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Quality trend + recent calls */}
-        <div className="grid lg:grid-cols-5 gap-6">
-          <div className="lg:col-span-2 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl p-6">
-            <h2 className="text-sm font-semibold text-stone-800 dark:text-stone-200 tracking-tight mb-1">Lead Quality Trend</h2>
-            <p className="text-xs text-stone-400 mb-5">Avg. interest score by week</p>
-            {qualityTrend.length === 0 ? (
-              <p className="text-sm text-stone-400 py-12 text-center">Not enough data yet.</p>
-            ) : (
-              <ResponsiveContainer width="100%" height={180}>
-                <BarChart data={qualityTrend} barSize={24} margin={{ top: 4, right: 0, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f4" vertical={false} />
-                  <XAxis dataKey="week" tick={{ fontSize: 11, fill: '#78716c' }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11, fill: '#78716c' }} axisLine={false} tickLine={false} domain={[0, 10]} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Bar dataKey="score" name="Avg Score" radius={[6,6,0,0]} fill="#d97706" />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </div>
-
-          <div className="lg:col-span-3 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl p-6">
-            <h2 className="text-sm font-semibold text-stone-800 dark:text-stone-200 tracking-tight mb-4">Recent Calls</h2>
-            {recentCalls.length === 0 ? (
-              <p className="text-sm text-stone-400 py-12 text-center">No calls logged yet. Once your agent starts dialing, results will show up here.</p>
-            ) : (
-              <div className="space-y-2">
-                {recentCalls.map((c, i) => (
-                  <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-stone-50 dark:bg-stone-800/50">
-                    <span
-                      className="text-[10px] font-bold px-2 py-1 rounded-md flex-shrink-0"
-                      style={{ background: `${STATUS_COLOR[c.status]}22`, color: STATUS_COLOR[c.status] }}
-                    >
-                      {c.status}
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-stone-800 dark:text-stone-200 truncate">{c.interest || c.phone}</p>
-                      <p className="text-xs text-stone-400 truncate">{c.source} · {c.phone}</p>
-                    </div>
-                    <span className="text-xs font-semibold text-stone-500 dark:text-stone-400 flex-shrink-0">{c.quality}/10</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          ) : filtered.length === 0 ? (
+            <div className="py-12 text-center text-sm text-stone-400">No leads match this filter.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-stone-100 dark:border-stone-800 bg-stone-50 dark:bg-stone-800/50">
+                    {['Name / Phone', 'Source', 'Interest', 'Status', 'Quality', 'Date'].map(h => (
+                      <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold text-stone-500 dark:text-stone-400 whitespace-nowrap">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-stone-50 dark:divide-stone-800/50">
+                  {filtered.map((lead, i) => (
+                    <tr key={lead.rowIndex || i} className="hover:bg-stone-50 dark:hover:bg-stone-800/30 transition-colors">
+                      <td className="px-4 py-3">
+                        <p className="font-medium text-stone-800 dark:text-stone-200">{lead.name || '—'}</p>
+                        <p className="text-xs text-stone-400 font-mono">{lead.phone}</p>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-stone-500 dark:text-stone-400 whitespace-nowrap">{lead.source || '—'}</td>
+                      <td className="px-4 py-3 max-w-xs">
+                        <p className="text-xs text-stone-600 dark:text-stone-300 truncate" title={lead.interest}>{lead.interest || '—'}</p>
+                      </td>
+                      <td className="px-4 py-3"><StatusBadge status={lead.status} /></td>
+                      <td className="px-4 py-3 text-xs font-semibold text-stone-500 dark:text-stone-400">
+                        {lead.quality > 0 ? `${lead.quality}/10` : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-stone-400 whitespace-nowrap">
+                        {lead.dateStr ? lead.dateStr.split('T')[0] : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
       </div>
