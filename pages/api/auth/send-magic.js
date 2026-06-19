@@ -5,11 +5,17 @@
 const { getAllTenants } = require('../../../lib/tenant-auth');
 const { getProfile } = require('../../../lib/sheets');
 const { createMagicToken, buildMagicUrl, sendMagicLinkEmail } = require('../../../lib/magic-link');
+const { isRateLimited } = require('../../../lib/upstash');
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
+  // Rate limit: 5 magic link requests per IP per minute
+  if (await isRateLimited(req, 'send-magic', 5)) {
+    return res.status(429).json({ sent: false, error: 'Too many attempts. Please wait a minute and try again.' });
+  }
 
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email is required.' });

@@ -5,11 +5,17 @@
 const { getTenantByKey } = require('../../../lib/tenant-auth');
 const { getProfile, setProfile } = require('../../../lib/sheets');
 const { createMagicToken, buildMagicUrl, sendMagicLinkEmail } = require('../../../lib/magic-link');
+const { isRateLimited } = require('../../../lib/upstash');
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
+  // Rate limit: 3 claim attempts per IP per minute
+  if (await isRateLimited(req, 'claim', 3)) {
+    return res.status(429).json({ sent: false, error: 'Too many attempts. Please wait a minute and try again.' });
+  }
 
   const { key, email } = req.body || {};
   if (!key || !email) return res.status(400).json({ error: 'Access key and email are required.' });
