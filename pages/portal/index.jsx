@@ -380,17 +380,17 @@ function LeftPanel() {
         </div>
 
         <blockquote className="text-[2rem] font-bold text-white leading-tight tracking-tight mb-5">
-          Every cold lead is a warm conversation waiting.
+          Your next appointment is already in your database.
         </blockquote>
         <p className="text-stone-400 text-base leading-relaxed max-w-xs">
-          A working AI voice agent that calls your dormant leads, qualifies them by name and interest, and books appointments — straight from your Google Sheet.
+          ReWarm calls your dormant leads by name, source, and original interest — then books the appointment. Add leads to your sheet. Your agent handles the rest.
         </p>
 
         <div className="mt-10 space-y-3">
           {[
-            'AI voice agent that calls and qualifies leads',
-            'Personalized to each lead from your Google Sheet',
-            'Pipeline and results dashboard, updated live',
+            'Calls each lead by name, source, and original interest',
+            'Qualifies, scores, and flags hot leads automatically',
+            'Results stream live into your dashboard and Google Sheet',
           ].map((item) => (
             <div key={item} className="flex items-center gap-3">
               <div className="w-5 h-5 rounded-full bg-amber-500/20 flex items-center justify-center flex-shrink-0">
@@ -406,7 +406,7 @@ function LeftPanel() {
 
       <div className="relative z-10 border-t border-stone-800 pt-8">
         <p className="text-xs text-stone-500 leading-relaxed">
-          Your results, live from your Google Sheet. No demo data, no delays.
+          Real calls. Real results. Your data stays in your sheet.
         </p>
       </div>
     </div>

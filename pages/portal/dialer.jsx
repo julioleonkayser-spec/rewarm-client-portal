@@ -138,21 +138,50 @@ export default function DialerControl() {
 
   if (loading) {
     return (
-      <PortalLayout title="Dialer Control">
-        <div className="max-w-2xl mx-auto py-24 text-center text-sm text-stone-400">Loading…</div>
+      <PortalLayout title="Dialer">
+        <div className="max-w-2xl mx-auto space-y-5">
+          <div className="space-y-2">
+            <div className="h-7 w-24 bg-stone-100 dark:bg-stone-800 rounded animate-pulse" />
+            <div className="h-3 w-40 bg-stone-100 dark:bg-stone-800 rounded animate-pulse" />
+          </div>
+          <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl p-6">
+            <div className="flex items-start gap-4">
+              <div className="w-10 h-10 rounded-xl bg-stone-100 dark:bg-stone-800 animate-pulse flex-shrink-0" />
+              <div className="flex-1 space-y-2">
+                <div className="h-5 w-32 bg-stone-100 dark:bg-stone-800 rounded animate-pulse" />
+                <div className="h-3.5 w-52 bg-stone-100 dark:bg-stone-800 rounded animate-pulse" />
+              </div>
+            </div>
+            <div className="mt-5">
+              <div className="h-10 w-32 bg-stone-100 dark:bg-stone-800 rounded-xl animate-pulse" />
+            </div>
+          </div>
+          <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl p-6 space-y-4">
+            <div className="h-5 w-44 bg-stone-100 dark:bg-stone-800 rounded animate-pulse" />
+            <div className="h-2 w-full bg-stone-100 dark:bg-stone-800 rounded-full animate-pulse" />
+            <div className="grid grid-cols-3 gap-4">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="space-y-1.5">
+                  <div className="h-7 w-12 bg-stone-100 dark:bg-stone-800 rounded animate-pulse" />
+                  <div className="h-3 w-16 bg-stone-100 dark:bg-stone-800 rounded animate-pulse" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </PortalLayout>
     );
   }
 
   return (
-    <PortalLayout title="Dialer Control">
+    <PortalLayout title="Dialer">
       <div className="max-w-2xl mx-auto space-y-5">
 
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-lg font-bold text-stone-900 dark:text-stone-100 tracking-tight">Dialer Control</h1>
-            <p className="text-xs text-stone-400 mt-0.5">Manage your AI calling agent</p>
+            <h1 className="text-xl font-semibold text-stone-900 dark:text-stone-100 tracking-tight">Dialer</h1>
+            <p className="text-xs text-stone-400 mt-0.5">Pause or resume your calling agent</p>
           </div>
           <button
             onClick={refresh}
@@ -182,9 +211,6 @@ export default function DialerControl() {
             <div className="flex-1 min-w-0">
               <p className={`text-base font-semibold tracking-tight ${cfg.text}`}>{cfg.label}</p>
               <p className="text-sm text-stone-500 dark:text-stone-400 mt-0.5">{cfg.desc}</p>
-              {dialerState?.raw && (
-                <p className="mt-2 text-[10px] font-mono text-stone-400 dark:text-stone-600">{dialerState.raw}</p>
-              )}
             </div>
           </div>
 
@@ -220,7 +246,7 @@ export default function DialerControl() {
                   disabled={busy}
                   className="px-5 py-2.5 text-sm font-semibold rounded-xl bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-300 disabled:opacity-50 transition-colors"
                 >
-                  {busy ? '…' : 'Re-pause'}
+                  {busy ? '…' : 'Keep Paused'}
                 </button>
               </>
             )}
@@ -236,10 +262,10 @@ export default function DialerControl() {
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400">LIMIT REACHED</span>
               )}
               {plan.warning_level === 'warning_80' && (
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-orange-100 text-orange-700">80% USED</span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400">80% USED</span>
               )}
               {plan.warning_level === 'warning_50' && (
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-700">50% USED</span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">50% USED</span>
               )}
             </div>
 

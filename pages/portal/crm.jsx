@@ -6,11 +6,11 @@ import PageHeader from '../../components/portal/PageHeader';
 const STAGES = ['new', 'contacted', 'warm', 'qualified', 'booked'];
 
 const STAGE_CONFIG = {
-  new:       { label: 'New',       bg: 'bg-slate-100',   text: 'text-slate-700',   dot: 'bg-slate-400' },
-  contacted: { label: 'Contacted', bg: 'bg-sky-50',      text: 'text-sky-700',     dot: 'bg-sky-400' },
-  warm:      { label: 'Warm',      bg: 'bg-amber-50',    text: 'text-amber-700',   dot: 'bg-amber-400' },
-  qualified: { label: 'Qualified', bg: 'bg-orange-50',   text: 'text-orange-700',  dot: 'bg-orange-500' },
-  booked:    { label: 'Booked',    bg: 'bg-emerald-50',  text: 'text-emerald-700', dot: 'bg-emerald-500' },
+  new:       { label: 'New',       bg: 'bg-slate-100 dark:bg-slate-800/50',    text: 'text-slate-700 dark:text-slate-300',    dot: 'bg-slate-400' },
+  contacted: { label: 'Contacted', bg: 'bg-sky-50 dark:bg-sky-900/20',         text: 'text-sky-700 dark:text-sky-400',         dot: 'bg-sky-400' },
+  warm:      { label: 'Warm',      bg: 'bg-amber-50 dark:bg-amber-900/20',     text: 'text-amber-700 dark:text-amber-400',     dot: 'bg-amber-400' },
+  qualified: { label: 'Qualified', bg: 'bg-orange-50 dark:bg-orange-900/20',   text: 'text-orange-700 dark:text-orange-400',   dot: 'bg-orange-500' },
+  booked:    { label: 'Booked',    bg: 'bg-emerald-50 dark:bg-emerald-900/20', text: 'text-emerald-700 dark:text-emerald-400', dot: 'bg-emerald-500' },
 };
 
 function StagePill({ stage }) {
@@ -41,8 +41,13 @@ function LastCalled({ lead }) {
 
 function Avatar({ name }) {
   const initials = name.split(' ').map(n => n[0]).join('').slice(0, 2) || '?';
-  const colors = ['bg-amber-100 text-amber-700', 'bg-sky-100 text-sky-700', 'bg-emerald-100 text-emerald-700',
-    'bg-violet-100 text-violet-700', 'bg-orange-100 text-orange-700'];
+  const colors = [
+    'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400',
+    'bg-sky-100 dark:bg-sky-900/30 text-sky-700 dark:text-sky-400',
+    'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400',
+    'bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400',
+    'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400',
+  ];
   const color = colors[(name.charCodeAt(0) || 0) % colors.length];
   return (
     <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold ${color}`}>
@@ -96,6 +101,65 @@ function NotesModal({ lead, onSave, onClose, saving }) {
   );
 }
 
+function TableSkeleton() {
+  return (
+    <>
+      {[...Array(5)].map((_, i) => (
+        <tr key={i} className="border-b border-stone-50 dark:border-stone-800/50">
+          <td className="py-3 px-4">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-stone-100 dark:bg-stone-800 animate-pulse flex-shrink-0" />
+              <div className="space-y-1.5">
+                <div className="h-3.5 w-28 bg-stone-100 dark:bg-stone-800 rounded animate-pulse" />
+                <div className="h-3 w-20 bg-stone-100 dark:bg-stone-800 rounded animate-pulse" />
+              </div>
+            </div>
+          </td>
+          <td className="py-3 px-4">
+            <div className="h-5 w-16 bg-stone-100 dark:bg-stone-800 rounded-full animate-pulse" />
+          </td>
+          <td className="py-3 px-4 hidden lg:table-cell">
+            <div className="h-3.5 w-36 bg-stone-100 dark:bg-stone-800 rounded animate-pulse" />
+          </td>
+          <td className="py-3 px-4 hidden sm:table-cell">
+            <div className="h-3.5 w-20 bg-stone-100 dark:bg-stone-800 rounded animate-pulse" />
+          </td>
+          <td className="py-3 px-4 hidden md:table-cell">
+            <div className="h-3.5 w-16 bg-stone-100 dark:bg-stone-800 rounded animate-pulse" />
+          </td>
+          <td className="py-3 px-4">
+            <div className="h-7 w-7 bg-stone-100 dark:bg-stone-800 rounded animate-pulse ml-auto" />
+          </td>
+        </tr>
+      ))}
+    </>
+  );
+}
+
+function EmptyLeads() {
+  return (
+    <tr>
+      <td colSpan={6} className="py-20">
+        <div className="max-w-xs mx-auto text-center px-4">
+          <div className="w-12 h-12 rounded-xl bg-stone-100 dark:bg-stone-800 flex items-center justify-center mx-auto mb-4">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-stone-400">
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <path d="M3 9h18M9 21V9" />
+            </svg>
+          </div>
+          <p className="text-sm font-semibold text-stone-700 dark:text-stone-300 mb-1">No leads in your sheet yet</p>
+          <p className="text-xs text-stone-400 dark:text-stone-500 leading-relaxed mb-4">
+            Add your contacts to your connected Google Sheet. The pipeline updates automatically after each call.
+          </p>
+          <a href="/portal/settings" className="text-xs font-semibold text-amber-600 hover:text-amber-700 dark:hover:text-amber-500 transition-colors">
+            Manage sheet connection →
+          </a>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
 export default function CRM() {
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -136,7 +200,6 @@ export default function CRM() {
       (l.phone || '').includes(search))
     .sort((a, b) => {
       if (sortKey === 'name') return a.name.localeCompare(b.name);
-      // lastCalled: most recently called first, never-called last
       if (!a.lastCalled && !b.lastCalled) return 0;
       if (!a.lastCalled) return 1;
       if (!b.lastCalled) return -1;
@@ -209,7 +272,7 @@ export default function CRM() {
                 className={`rounded-xl p-3 text-left transition-all border ${
                   activeStage === stage
                     ? `${cfg.bg} ${cfg.text} border-current`
-                    : 'bg-white dark:bg-stone-900 border-stone-200 dark:border-stone-800 hover:border-stone-300'
+                    : 'bg-white dark:bg-stone-900 border-stone-200 dark:border-stone-800 hover:border-stone-300 dark:hover:border-stone-700'
                 }`}
               >
                 <p className={`text-xl font-bold ${activeStage === stage ? cfg.text : 'text-stone-800 dark:text-stone-200'}`}>
@@ -268,17 +331,13 @@ export default function CRM() {
               </thead>
               <tbody className="divide-y divide-stone-50 dark:divide-stone-800/50">
                 {loading ? (
-                  <tr>
-                    <td colSpan={6} className="py-16 text-center text-sm text-stone-400">
-                      Loading your leads…
-                    </td>
-                  </tr>
+                  <TableSkeleton />
+                ) : leads.length === 0 ? (
+                  <EmptyLeads />
                 ) : filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-16 text-center text-sm text-stone-400">
-                      {leads.length === 0
-                        ? 'No leads in your Sheet yet.'
-                        : 'No leads match your current filters.'}
+                    <td colSpan={6} className="py-14 text-center text-sm text-stone-400 dark:text-stone-500">
+                      No leads match your current filters.
                     </td>
                   </tr>
                 ) : filtered.map(lead => (

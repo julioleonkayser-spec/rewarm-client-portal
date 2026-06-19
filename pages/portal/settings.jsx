@@ -359,7 +359,28 @@ export default function Settings() {
     } catch (err) { setError(err.message); setSaveStatus('idle'); }
   };
 
-  if (loading) return <PortalLayout title="Settings"><div className="max-w-3xl mx-auto py-24 text-center text-sm text-stone-400">Loading…</div></PortalLayout>;
+  if (loading) return (
+    <PortalLayout title="Settings">
+      <div className="max-w-3xl mx-auto">
+        <div className="flex gap-6">
+          <div className="hidden sm:flex flex-col gap-1 w-44 flex-shrink-0 pt-1">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="h-9 rounded-xl bg-stone-100 dark:bg-stone-800 animate-pulse" />
+            ))}
+          </div>
+          <div className="flex-1 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl p-6 space-y-4">
+            <div className="h-5 w-20 bg-stone-100 dark:bg-stone-800 rounded animate-pulse" />
+            <div className="h-3 w-48 bg-stone-100 dark:bg-stone-800 rounded animate-pulse" />
+            <div className="grid sm:grid-cols-2 gap-4 mt-2">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="h-12 bg-stone-100 dark:bg-stone-800 rounded-xl animate-pulse" />
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </PortalLayout>
+  );
 
   return (
     <PortalLayout title="Settings">
@@ -418,22 +439,22 @@ export default function Settings() {
               {section === 'access' && (<>
                 <div>
                   <h2 className="text-base font-semibold text-stone-900 dark:text-stone-100 tracking-tight">Access</h2>
-                  <p className="text-xs text-stone-500 mt-0.5">How you access this portal</p>
+                  <p className="text-xs text-stone-500 mt-0.5">How you sign in to this portal</p>
                 </div>
                 <div className="flex items-center gap-3 p-4 rounded-xl bg-stone-50 dark:bg-stone-800/50 border border-stone-200 dark:border-stone-700">
-                  <div className="w-2.5 h-2.5 rounded-full bg-stone-300 dark:bg-stone-600 flex-shrink-0" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 flex-shrink-0" />
                   <div>
-                    <p className="text-sm font-semibold text-stone-700 dark:text-stone-300">Gumroad auto-provisioning: not connected</p>
-                    <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">Buyers currently need a key shared manually after purchase.</p>
+                    <p className="text-sm font-semibold text-stone-700 dark:text-stone-300">Sign-in via secure email link</p>
+                    <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">Your account uses passwordless authentication. Contact support to update your access email.</p>
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wide mb-1.5">Demo Access Key</label>
+                  <label className="block text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wide mb-1.5">Your Portal Access Key</label>
                   <div className="flex gap-2">
                     <input readOnly value="REWARM-DEMO-2024" className="flex-1 px-4 py-3 text-sm font-mono border border-stone-200 dark:border-stone-700 rounded-xl bg-stone-50 dark:bg-stone-800 text-stone-600 dark:text-stone-400 focus:outline-none" />
                     <button onClick={() => navigator.clipboard?.writeText('REWARM-DEMO-2024')} className="px-4 py-3 text-sm font-medium bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-400 rounded-xl transition-colors flex-shrink-0">Copy</button>
                   </div>
-                  <p className="mt-1.5 text-xs text-stone-400">Hardcoded demo key — not unique per buyer yet.</p>
+                  <p className="mt-1.5 text-xs text-stone-400">Use this key as an alternative sign-in method when prompted.</p>
                 </div>
               </>)}
             </div>
