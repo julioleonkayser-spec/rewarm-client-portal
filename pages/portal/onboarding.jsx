@@ -75,8 +75,15 @@ export default function Onboarding() {
     setConnecting(false);
   };
 
+  useEffect(() => {
+    if (step === 4) {
+      localStorage.removeItem('rewarm_first_run');
+      localStorage.setItem('rewarm_onboarded', '1');
+    }
+  }, [step]);
+
   return (
-    <PortalLayout title="Setup Guide">
+    <PortalLayout title="Getting Started">
       <div className="max-w-2xl mx-auto">
 
         <div className="mb-6 flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -157,6 +164,13 @@ export default function Onboarding() {
                     </div>
                   ))}
                 </div>
+
+                <button
+                  onClick={() => setStep(2)}
+                  className="mt-6 w-full py-3 px-4 bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold rounded-xl transition-colors"
+                >
+                  Get started →
+                </button>
               </div>
             )}
 

@@ -12,7 +12,7 @@ export default function AuthCallback() {
 
     if (!t) {
       setStatus('error');
-      setErrorMsg('Missing magic link token.');
+      setErrorMsg('Sign-in link is missing or incomplete.');
       return;
     }
 
@@ -34,15 +34,17 @@ export default function AuthCallback() {
               loggedAt: Date.now(),
             })
           );
-          router.replace('/portal/dashboard');
+          const isFirstRun = localStorage.getItem('rewarm_first_run') === '1';
+          localStorage.removeItem('rewarm_first_run');
+          router.replace(isFirstRun ? '/portal/onboarding' : '/portal/dashboard');
         } else {
           setStatus('error');
-          setErrorMsg(data.error || 'This magic link has expired or is invalid.');
+          setErrorMsg(data.error || 'This sign-in link has expired or is invalid.');
         }
       })
       .catch(() => {
         setStatus('error');
-        setErrorMsg('Could not verify your magic link. Check your connection and try again.');
+        setErrorMsg('Could not verify your sign-in link. Check your connection and try again.');
       });
   }, [router.isReady, router.query.t]);
 
@@ -60,7 +62,7 @@ export default function AuthCallback() {
           <div>
             <div className="w-12 h-12 mx-auto mb-5 rounded-full border-2 border-stone-200 border-t-amber-500 animate-spin" />
             <p className="text-sm font-medium text-stone-700">Signing you in…</p>
-            <p className="mt-1 text-xs text-stone-400">Verifying your magic link</p>
+            <p className="mt-1 text-xs text-stone-400">Just a moment</p>
           </div>
         )}
 

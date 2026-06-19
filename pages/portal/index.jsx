@@ -17,10 +17,10 @@ export default function PortalLogin() {
   const [key, setKey] = useState('');
   const [claimEmail, setClaimEmail] = useState('');
   const [sent, setSent] = useState(false);
+  const [sentForClaim, setSentForClaim] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Redirect if a valid session already exists
   useEffect(() => {
     try {
       const raw = localStorage.getItem('rewarm_session');
@@ -38,8 +38,6 @@ export default function PortalLogin() {
     setLoading(false);
   };
 
-  // ── Email login (returning users) ────────────────────────────────────────
-
   const handleEmailLogin = async (e) => {
     e.preventDefault();
     if (!EMAIL_RE.test(email.trim())) { setError('Enter a valid email address.'); return; }
@@ -51,15 +49,14 @@ export default function PortalLogin() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim() }),
       });
+      setSentForClaim(false);
       setSent(true);
     } catch {
-      setError('Could not send magic link. Check your connection and try again.');
+      setError('Could not send the sign-in link. Check your connection and try again.');
     } finally {
       setLoading(false);
     }
   };
-
-  // ── Account claim (first-time) ────────────────────────────────────────────
 
   const handleClaim = async (e) => {
     e.preventDefault();
@@ -75,18 +72,18 @@ export default function PortalLogin() {
       });
       const data = await res.json();
       if (data.sent) {
+        localStorage.setItem('rewarm_first_run', '1');
+        setSentForClaim(true);
         setSent(true);
       } else {
-        setError(data.error || 'Could not claim account. Check your access key and try again.');
+        setError(data.error || 'Could not activate your account. Check your access key and try again.');
       }
     } catch {
-      setError('Could not claim account. Check your connection and try again.');
+      setError('Could not activate your account. Check your connection and try again.');
     } finally {
       setLoading(false);
     }
   };
-
-  // ── Access key fallback (transition period) ───────────────────────────────
 
   const handleAccessKey = async (e) => {
     e.preventDefault();
@@ -106,11 +103,11 @@ export default function PortalLogin() {
         }));
         router.push('/portal/dashboard');
       } else {
-        setError('Invalid access key. Check your key and try again.');
+        setError('Access key not recognised. Double-check your key and try again.');
         setLoading(false);
       }
     } catch {
-      setError('Could not verify key. Check your connection and try again.');
+      setError('Could not verify your key. Check your connection and try again.');
       setLoading(false);
     }
   };
@@ -130,11 +127,21 @@ export default function PortalLogin() {
                 <polygon points="22 2 15 22 11 13 2 9 22 2" />
               </svg>
             </div>
-            <h1 className="text-2xl font-bold text-stone-900 tracking-tight mb-2">Check your email</h1>
-            <p className="text-stone-500 text-sm leading-relaxed mb-6">
-              We sent a magic link to <span className="font-semibold text-stone-700">{sentEmail}</span>.
-              Click it to sign in — the link expires in 15 minutes.
+            <h1 className="text-2xl font-bold text-stone-900 tracking-tight mb-2">
+              {sentForClaim ? 'Activate your account' : 'Check your inbox'}
+            </h1>
+            <p className="text-stone-500 text-sm leading-relaxed mb-3">
+              We sent a sign-in link to{' '}
+              <span className="font-semibold text-stone-700">{sentEmail}</span>.{' '}
+              {sentForClaim
+                ? 'Click it to activate your account and get started — the link expires in 15 minutes.'
+                : 'Click it to sign in — the link expires in 15 minutes.'}
             </p>
+            {sentForClaim && (
+              <p className="text-xs text-stone-500 bg-stone-100 rounded-xl px-4 py-3 leading-relaxed mb-5">
+                After clicking the link, you&apos;ll be guided through a short setup — usually about 9 minutes.
+              </p>
+            )}
             <p className="text-xs text-stone-400 leading-relaxed">
               Didn&apos;t get it? Check your spam folder, or{' '}
               <button
@@ -160,13 +167,13 @@ export default function PortalLogin() {
 
         <div className="max-w-sm w-full mx-auto lg:mx-0">
 
-          {/* ── Email login mode ─────────────────────────────────── */}
+          {/* ── Email login (returning users) ─────────────────── */}
           {mode === 'email' && (
             <>
               <div className="mb-8">
-                <h1 className="text-2xl font-bold text-stone-900 tracking-tight mb-2">Sign in to your portal</h1>
+                <h1 className="text-2xl font-bold text-stone-900 tracking-tight mb-2">Sign in</h1>
                 <p className="text-stone-500 text-sm leading-relaxed">
-                  Enter your email and we&apos;ll send you a magic link.
+                  We&apos;ll send a secure sign-in link to your inbox — no password needed.
                 </p>
               </div>
 
@@ -194,20 +201,26 @@ export default function PortalLogin() {
                   disabled={!email.trim() || loading}
                   className="w-full py-3 px-4 bg-stone-900 hover:bg-stone-800 text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  {loading ? 'Sending…' : 'Send magic link'}
+                  {loading ? 'Sending…' : 'Send sign-in link'}
                 </button>
               </form>
 
-              <div className="mt-8 pt-6 border-t border-stone-100 space-y-2 text-center">
-                <p className="text-xs text-stone-400">
-                  First time here?{' '}
-                  <button onClick={() => reset('claim')} className="text-stone-600 hover:text-stone-900 font-medium underline underline-offset-2">
-                    Claim your account
-                  </button>
-                </p>
-                <p className="text-xs text-stone-400">
-                  Have an access key?{' '}
-                  <button onClick={() => reset('access-key')} className="text-stone-600 hover:text-stone-900 font-medium underline underline-offset-2">
+              <div className="mt-8 pt-6 border-t border-stone-100 space-y-2.5">
+                <button
+                  onClick={() => reset('claim')}
+                  className="w-full flex items-center justify-between px-4 py-3.5 bg-white border border-stone-200 hover:border-stone-300 hover:bg-stone-50 rounded-xl transition-colors"
+                >
+                  <span className="text-left">
+                    <span className="block text-sm font-semibold text-stone-800">New to ReWarm?</span>
+                    <span className="block text-xs text-stone-500 mt-0.5">Set up your account with your access key</span>
+                  </span>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-stone-400 flex-shrink-0 ml-3">
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                </button>
+                <p className="text-xs text-center text-stone-400">
+                  Have a key but no email set up?{' '}
+                  <button onClick={() => reset('access-key')} className="text-stone-500 hover:text-stone-700 font-medium underline underline-offset-2">
                     Sign in with key
                   </button>
                 </p>
@@ -215,20 +228,23 @@ export default function PortalLogin() {
             </>
           )}
 
-          {/* ── Claim mode ───────────────────────────────────────── */}
+          {/* ── Claim (first-time account setup) ─────────────── */}
           {mode === 'claim' && (
             <>
               <div className="mb-8">
-                <h1 className="text-2xl font-bold text-stone-900 tracking-tight mb-2">Claim your account</h1>
+                <span className="inline-block text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full mb-4">
+                  First time here
+                </span>
+                <h1 className="text-2xl font-bold text-stone-900 tracking-tight mb-2">Set up your account</h1>
                 <p className="text-stone-500 text-sm leading-relaxed">
-                  Enter your access key and email to set up magic-link login.
+                  Link your access key to your email to enable secure, password-free sign-in.
                 </p>
               </div>
 
-              <form onSubmit={handleClaim} className="space-y-3">
+              <form onSubmit={handleClaim} className="space-y-4">
                 <div>
                   <label className="block text-xs font-semibold text-stone-600 mb-1.5 uppercase tracking-wide">
-                    Access Key
+                    Access key
                   </label>
                   <input
                     type="text"
@@ -239,6 +255,9 @@ export default function PortalLogin() {
                     autoFocus
                     className="w-full px-4 py-3 text-sm border border-stone-200 rounded-xl bg-white text-stone-900 placeholder-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent font-mono"
                   />
+                  <p className="mt-1.5 text-xs text-stone-400">
+                    Included in your welcome email from ReWarm after purchase.
+                  </p>
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-stone-600 mb-1.5 uppercase tracking-wide">
@@ -251,24 +270,27 @@ export default function PortalLogin() {
                     placeholder="you@example.com"
                     className="w-full px-4 py-3 text-sm border border-stone-200 rounded-xl bg-white text-stone-900 placeholder-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
                   />
-                  {error && (
-                    <p className="mt-1.5 text-xs text-red-500 flex items-center gap-1">
-                      <AlertIcon />{error}
-                    </p>
-                  )}
+                  <p className="mt-1.5 text-xs text-stone-400">
+                    You&apos;ll use this to sign in going forward — no password ever needed.
+                  </p>
                 </div>
+                {error && (
+                  <p className="text-xs text-red-500 flex items-center gap-1">
+                    <AlertIcon />{error}
+                  </p>
+                )}
                 <button
                   type="submit"
                   disabled={!key.trim() || !claimEmail.trim() || loading}
                   className="w-full py-3 px-4 bg-stone-900 hover:bg-stone-800 text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  {loading ? 'Claiming…' : 'Claim account'}
+                  {loading ? 'Activating…' : 'Activate account'}
                 </button>
               </form>
 
               <div className="mt-8 pt-6 border-t border-stone-100 text-center">
                 <p className="text-xs text-stone-400">
-                  Already claimed?{' '}
+                  Already set up?{' '}
                   <button onClick={() => reset('email')} className="text-stone-600 hover:text-stone-900 font-medium underline underline-offset-2">
                     Sign in with email
                   </button>
@@ -277,20 +299,20 @@ export default function PortalLogin() {
             </>
           )}
 
-          {/* ── Access key fallback ──────────────────────────────── */}
+          {/* ── Access key fallback ──────────────────────────── */}
           {mode === 'access-key' && (
             <>
               <div className="mb-8">
-                <h1 className="text-2xl font-bold text-stone-900 tracking-tight mb-2">Access key sign in</h1>
+                <h1 className="text-2xl font-bold text-stone-900 tracking-tight mb-2">Sign in with access key</h1>
                 <p className="text-stone-500 text-sm leading-relaxed">
-                  Enter your access key to sign in directly.
+                  Enter your key for direct access — no email required.
                 </p>
               </div>
 
               <form onSubmit={handleAccessKey} className="space-y-3">
                 <div>
                   <label className="block text-xs font-semibold text-stone-600 mb-1.5 uppercase tracking-wide">
-                    Access Key
+                    Access key
                   </label>
                   <input
                     type="text"
@@ -316,19 +338,17 @@ export default function PortalLogin() {
                 </button>
               </form>
 
-              <div className="mt-8 pt-6 border-t border-stone-100 text-center">
-                <p className="text-xs text-stone-400">
-                  <button onClick={() => reset('email')} className="text-stone-600 hover:text-stone-900 font-medium underline underline-offset-2">
-                    ← Back to email sign in
-                  </button>
-                </p>
+              <div className="mt-8 pt-6 border-t border-stone-100 flex items-center justify-between">
+                <button onClick={() => reset('email')} className="text-xs text-stone-500 hover:text-stone-700 font-medium underline underline-offset-2">
+                  ← Back to email
+                </button>
+                <button onClick={() => reset('claim')} className="text-xs text-stone-500 hover:text-stone-700 font-medium underline underline-offset-2">
+                  Set up email sign-in →
+                </button>
               </div>
             </>
           )}
 
-          <p className="mt-8 text-center text-xs text-stone-400">
-            Powered by <span className="font-semibold text-stone-600">ReWarm</span> · The AI calling system for real estate agents
-          </p>
         </div>
       </div>
     </div>
