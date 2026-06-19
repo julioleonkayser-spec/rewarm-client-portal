@@ -135,8 +135,8 @@ export default function PortalLayout({ children, title }) {
               <span className="text-xs font-bold text-white tracking-tight">RW</span>
             </div>
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-white leading-tight">ReWarm Portal</p>
-              <p className="text-xs text-stone-500 leading-tight">{sessionPlan}</p>
+              <p className="text-sm font-semibold text-white leading-tight tracking-tight">ReWarm</p>
+              <p className="text-xs text-stone-400 leading-tight">{sessionPlan}</p>
             </div>
           </div>
 
@@ -152,7 +152,7 @@ export default function PortalLayout({ children, title }) {
                   className={`
                     flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
                     ${active
-                      ? 'bg-stone-800 text-amber-400 border-l-2 border-amber-500 pl-2.5'
+                      ? 'bg-stone-800 text-amber-400'
                       : 'text-stone-400 hover:text-stone-200 hover:bg-stone-800/60'
                     }
                   `}
@@ -203,9 +203,9 @@ export default function PortalLayout({ children, title }) {
               </svg>
             </button>
 
-            <h1 className="flex-1 text-sm font-semibold text-stone-800 dark:text-stone-200 tracking-tight">
+            <p className="flex-1 text-xs font-medium text-stone-400 dark:text-stone-500 tracking-wider uppercase">
               {title}
-            </h1>
+            </p>
 
             <button
               onClick={toggleDark}

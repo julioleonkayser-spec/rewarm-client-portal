@@ -149,17 +149,17 @@ export default function Onboarding() {
                   Your AI voice agent calls leads from your Google Sheet — by name, interest, and source — and books appointments for you. Setup takes about 9 minutes.
                 </p>
 
-                <div className="space-y-3">
+                <div className="space-y-2.5">
                   {[
-                    { icon: '📋', title: 'Connect your Google Sheet', desc: 'Your sheet is the single source of truth for leads and results.' },
-                    { icon: '📞', title: 'Add your leads', desc: 'Paste your cold database directly into the sheet.' },
-                    { icon: '🚀', title: 'Watch the pipeline fill', desc: 'Results appear in your dashboard in real time after each call.' },
+                    { num: '01', title: 'Connect your Google Sheet', desc: 'The agent reads leads and writes results directly — your sheet is the single source of truth.' },
+                    { num: '02', title: 'Add your leads', desc: "Paste your cold database into the sheet. Any contact that hasn't heard from you in months is a candidate." },
+                    { num: '03', title: 'Watch the pipeline fill', desc: 'Results appear after each call — status, quality score, and booking confirmation in real time.' },
                   ].map(item => (
-                    <div key={item.title} className="flex items-start gap-4 p-4 rounded-xl bg-stone-50 dark:bg-stone-800/50">
-                      <span className="text-lg flex-shrink-0">{item.icon}</span>
+                    <div key={item.num} className="flex items-start gap-4 p-4 rounded-xl bg-stone-50 dark:bg-stone-800/50">
+                      <span className="text-xs font-bold text-stone-300 dark:text-stone-600 tabular-nums mt-0.5 flex-shrink-0 w-5">{item.num}</span>
                       <div>
                         <p className="text-sm font-semibold text-stone-800 dark:text-stone-200">{item.title}</p>
-                        <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">{item.desc}</p>
+                        <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5 leading-relaxed">{item.desc}</p>
                       </div>
                     </div>
                   ))}

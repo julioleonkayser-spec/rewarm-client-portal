@@ -13,7 +13,7 @@ const STATUS_BG    = { HOT: '#d1fae5', WARM: '#fef3c7', COLD: '#f3f4f6', SKIP: '
 function StatusBadge({ status }) {
   if (!status) return <span className="text-xs text-stone-400 italic">Pending</span>;
   return (
-    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md whitespace-nowrap"
+    <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full whitespace-nowrap"
       style={{ background: STATUS_BG[status] || '#f3f4f6', color: STATUS_COLOR[status] || '#6b7280' }}>
       {status}
     </span>
@@ -30,14 +30,22 @@ const Tip = ({ active, payload, label }) => {
   );
 };
 
-function KpiCard({ label, value, sub, accent, ring }) {
+function KpiCard({ label, value, sub, valueColor = 'text-stone-900 dark:text-stone-100' }) {
   return (
-    <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl p-5">
-      <div className={`inline-flex items-center justify-center min-w-10 h-10 px-2.5 rounded-xl mb-3 ${ring}`}>
-        <span className={`text-xl font-bold ${accent}`}>{value}</span>
-      </div>
-      <p className="text-xs font-semibold text-stone-700 dark:text-stone-300 mb-0.5">{label}</p>
-      <p className="text-xs text-stone-400 dark:text-stone-500">{sub}</p>
+    <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-xl p-5">
+      <p className={`text-3xl font-bold tracking-tight mb-1 ${valueColor}`}>{value}</p>
+      <p className="text-sm font-medium text-stone-700 dark:text-stone-300">{label}</p>
+      <p className="text-xs text-stone-400 dark:text-stone-500 mt-0.5">{sub}</p>
+    </div>
+  );
+}
+
+function KpiSkeleton() {
+  return (
+    <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-xl p-5 animate-pulse">
+      <div className="h-8 w-14 bg-stone-100 dark:bg-stone-800 rounded mb-3" />
+      <div className="h-3.5 w-20 bg-stone-100 dark:bg-stone-800 rounded mb-2" />
+      <div className="h-3 w-16 bg-stone-100 dark:bg-stone-800 rounded" />
     </div>
   );
 }
@@ -70,7 +78,12 @@ export default function Dashboard() {
   if (loading) {
     return (
       <PortalLayout title="Dashboard">
-        <div className="max-w-6xl mx-auto py-24 text-center text-sm text-stone-400">Loading…</div>
+        <div className="max-w-6xl mx-auto space-y-6">
+          <div className="h-7 w-28 bg-stone-100 dark:bg-stone-800 rounded animate-pulse" />
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+            {[...Array(5)].map((_, i) => <KpiSkeleton key={i} />)}
+          </div>
+        </div>
       </PortalLayout>
     );
   }
@@ -93,10 +106,10 @@ export default function Dashboard() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-lg font-bold text-stone-900 dark:text-stone-100 tracking-tight">Lead Dashboard</h1>
+            <h1 className="text-xl font-semibold text-stone-900 dark:text-stone-100 tracking-tight">Dashboard</h1>
             {lastRefresh && (
               <p className="text-xs text-stone-400 mt-0.5">
-                Updated {lastRefresh.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · auto-refreshes every 30s
+                Updated {lastRefresh.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · refreshes every 30s
               </p>
             )}
           </div>
@@ -130,7 +143,7 @@ export default function Dashboard() {
 
         {/* Plan usage strip */}
         {data?.plan && (
-          <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl px-5 py-4">
+          <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-xl px-5 py-4">
             <div className="flex items-center justify-between mb-2 gap-3">
               <div className="flex items-center gap-2 min-w-0">
                 <span className="text-xs font-semibold text-stone-700 dark:text-stone-300 whitespace-nowrap">{data.plan.plan_name} Plan</span>
@@ -165,12 +178,12 @@ export default function Dashboard() {
         )}
 
         {/* KPI cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-          <KpiCard label="Total Leads" value={allLeads.length}  sub="in your sheet"                accent="text-stone-900 dark:text-stone-100"     ring="bg-stone-100 dark:bg-stone-800" />
-          <KpiCard label="Called"      value={kpis.total}       sub="with a result logged"         accent="text-blue-600 dark:text-blue-400"        ring="bg-blue-50 dark:bg-blue-900/20" />
-          <KpiCard label="Pending"     value={kpis.pending}     sub="not yet called"               accent="text-stone-500 dark:text-stone-400"      ring="bg-stone-100 dark:bg-stone-800" />
-          <KpiCard label="Hot Leads"   value={kpis.hot}         sub={`${kpis.hotPct}% of called`}  accent="text-emerald-600 dark:text-emerald-400"  ring="bg-emerald-50 dark:bg-emerald-900/20" />
-          <KpiCard label="Avg Quality" value={kpis.avgQ || '—'} sub="interest score (0–10)"        accent="text-amber-600 dark:text-amber-400"      ring="bg-amber-50 dark:bg-amber-900/20" />
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+          <KpiCard label="Total Leads"  value={allLeads.length}  sub="in your sheet"              valueColor="text-stone-900 dark:text-stone-100" />
+          <KpiCard label="Called"       value={kpis.total}       sub="calls with outcome"          valueColor="text-blue-600 dark:text-blue-400" />
+          <KpiCard label="Pending"      value={kpis.pending}     sub="not yet called"              valueColor="text-stone-500 dark:text-stone-400" />
+          <KpiCard label="Hot Leads"    value={kpis.hot}         sub={`${kpis.hotPct}% of called`} valueColor="text-emerald-600 dark:text-emerald-400" />
+          <KpiCard label="Avg Quality"  value={kpis.avgQ || '—'} sub="interest score (0–10)"       valueColor="text-amber-600 dark:text-amber-400" />
         </div>
 
         {/* Charts — only when there is called data */}
@@ -226,7 +239,7 @@ export default function Dashboard() {
         <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl overflow-hidden">
           <div className="flex items-center justify-between px-5 py-4 border-b border-stone-100 dark:border-stone-800">
             <div>
-              <h2 className="text-sm font-semibold text-stone-800 dark:text-stone-200">All Leads</h2>
+              <h2 className="text-sm font-semibold text-stone-800 dark:text-stone-200">Leads</h2>
               <p className="text-xs text-stone-400 mt-0.5">{filtered.length} of {allLeads.length} shown</p>
             </div>
             <div className="flex gap-1 flex-wrap justify-end">
