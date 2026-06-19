@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { sessionFetch } from '../../lib/portal/fetcher';
@@ -106,6 +107,10 @@ export default function PortalLayout({ children, title }) {
   if (!mounted) return null;
 
   return (
+    <>
+    <Head>
+      <title>{title ? `${title} — ReWarm` : 'ReWarm Portal'}</title>
+    </Head>
     <div className={dark ? 'dark' : ''}>
       <div className="flex min-h-screen bg-stone-50 dark:bg-stone-950">
 
@@ -160,7 +165,7 @@ export default function PortalLayout({ children, title }) {
           </nav>
 
           {/* User profile */}
-          <div className="px-3 py-4 border-t border-stone-800">
+          <div className="px-3 py-3 border-t border-stone-800 space-y-1">
             <div className="flex items-center gap-3 px-2 py-1.5">
               <div className="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center flex-shrink-0">
                 <span className="text-xs font-bold text-white">{initials}</span>
@@ -171,17 +176,17 @@ export default function PortalLayout({ children, title }) {
                 </p>
                 <p className="text-xs text-stone-500 truncate">{displayBrokerage}</p>
               </div>
-              <button
-                onClick={logout}
-                className="text-stone-500 hover:text-stone-300 transition-colors p-1"
-                title="Sign out"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-                  <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" /><polyline points="16 17 21 12 16 7" />
-                  <line x1="21" y1="12" x2="9" y2="12" />
-                </svg>
-              </button>
             </div>
+            <button
+              onClick={logout}
+              className="w-full flex items-center gap-2.5 px-2 py-2 text-xs font-medium text-stone-500 hover:text-stone-200 hover:bg-stone-800/60 rounded-lg transition-colors"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 flex-shrink-0">
+                <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" /><polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
+              Sign out
+            </button>
           </div>
         </aside>
 
@@ -233,5 +238,6 @@ export default function PortalLayout({ children, title }) {
         </div>
       </div>
     </div>
+    </>
   );
 }
