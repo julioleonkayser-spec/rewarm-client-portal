@@ -7,13 +7,13 @@ export default function PortalLogin() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const startSession = async (plan = 'Demo') => {
-    localStorage.setItem('rewarm_session', JSON.stringify({ plan, loggedAt: Date.now() }));
+  const startSession = async (plan = 'Demo', tenantId = 'default', token = '', issuedAt = 0) => {
+    localStorage.setItem('rewarm_session', JSON.stringify({ plan, tenantId, token, issuedAt, loggedAt: Date.now() }));
     if (plan !== 'Demo') {
       try {
         await fetch('/api/profile', {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
           body: JSON.stringify({ plan_name: plan }),
         });
       } catch {}
@@ -33,7 +33,7 @@ export default function PortalLogin() {
       });
       const data = await res.json();
       if (data.valid) {
-        await startSession(data.plan);
+        await startSession(data.plan, data.tenantId, data.token, data.issuedAt);
       } else {
         setError('Invalid access key. Check your key and try again.');
         setLoading(false);

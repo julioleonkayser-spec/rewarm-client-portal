@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import PortalLayout from '../../components/portal/PortalLayout';
+import { sessionFetch } from '../../lib/portal/fetcher';
 import PageHeader from '../../components/portal/PageHeader';
 
 const STAGES = ['new', 'contacted', 'warm', 'qualified', 'booked'];
@@ -109,7 +110,7 @@ export default function CRM() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/leads');
+      const res = await sessionFetch('/api/leads');
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to load leads');
       setLeads(data.leads || []);
@@ -146,7 +147,7 @@ export default function CRM() {
     if (!editingLead) return;
     setSaving(true);
     try {
-      const res = await fetch('/api/leads', {
+      const res = await sessionFetch('/api/leads', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone: editingLead.phone, notes }),

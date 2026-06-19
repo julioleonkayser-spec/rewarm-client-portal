@@ -1,4 +1,6 @@
 const { getProfile, setProfile } = require('../../lib/sheets');
+const { verifyRequest, AuthError } = require('../../lib/tenant-auth');
+
 
 const DEFAULT_PROFILE = {
   name: '',
@@ -22,6 +24,11 @@ const DEFAULT_PROFILE = {
 };
 
 export default async function handler(req, res) {
+  let tenant;
+  try { tenant = verifyRequest(req); } catch (err) {
+    return res.status(err instanceof AuthError ? err.status : 401).json({ error: err.message || 'Unauthorized' });
+  }
+  // Phase 2 TODO: use tenant.controlSheetId for tenant-scoped sheet routing
   try {
     if (req.method === 'GET') {
       const profile = await getProfile();

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import PortalLayout from '../../components/portal/PortalLayout';
+import { sessionFetch } from '../../lib/portal/fetcher';
 
 const NAV_ITEMS = [
   { id: 'profile',      label: 'Profile' },
@@ -85,7 +86,7 @@ function PlanSection({ profile, onSaved }) {
   const [saveStatus, setSaveStatus] = useState('idle');
 
   useEffect(() => {
-    fetch('/api/plan')
+    sessionFetch('/api/plan')
       .then(r => r.json())
       .then(d => { if (d.plan) setUsage(d.plan); })
       .catch(() => {})
@@ -95,7 +96,7 @@ function PlanSection({ profile, onSaved }) {
   const save = async () => {
     setSaveStatus('saving');
     try {
-      const res = await fetch('/api/profile', {
+      const res = await sessionFetch('/api/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ billing_cycle_start: cycleStart }),
@@ -201,7 +202,7 @@ function IntegrationsSection({ profile, onSaved }) {
   const [saEmail, setSaEmail] = useState('');
 
   useEffect(() => {
-    fetch('/api/sheets/data')
+    sessionFetch('/api/sheets/data')
       .then(r => r.json())
       .then(d => { if (d.serviceAccountEmail) setSaEmail(d.serviceAccountEmail); })
       .catch(() => {});
@@ -210,7 +211,7 @@ function IntegrationsSection({ profile, onSaved }) {
   const verify = async () => {
     setVerifyState('loading');
     try {
-      const res = await fetch('/api/sheets/verify', {
+      const res = await sessionFetch('/api/sheets/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sheetId: sheetInput }),
@@ -224,7 +225,7 @@ function IntegrationsSection({ profile, onSaved }) {
   const save = async () => {
     setSaveStatus('saving');
     try {
-      const res = await fetch('/api/profile', {
+      const res = await sessionFetch('/api/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ dataSheetId: verifyState?.sheetId || sheetInput }),
@@ -327,7 +328,7 @@ export default function Settings() {
   });
 
   const reload = () => {
-    fetch('/api/profile')
+    sessionFetch('/api/profile')
       .then(res => res.json())
       .then(data => { if (data.profile) setProfileState(p => ({ ...p, ...data.profile })); setLoading(false); })
       .catch(err => { setError(err.message); setLoading(false); });
@@ -340,7 +341,7 @@ export default function Settings() {
   const handleSave = async () => {
     setSaveStatus('saving');
     try {
-      const res = await fetch('/api/profile', {
+      const res = await sessionFetch('/api/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

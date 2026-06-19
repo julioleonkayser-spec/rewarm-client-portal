@@ -1,4 +1,6 @@
 const { getDialerState, setDialerStatus, getProfile, getAllRows, SHEET_ID } = require('../../lib/sheets');
+const { verifyRequest, AuthError } = require('../../lib/tenant-auth');
+
 const { buildPlanSummary } = require('../../lib/plan-config');
 
 const PAUSE_REASON_MAP = {
@@ -9,6 +11,11 @@ const PAUSE_REASON_MAP = {
 };
 
 export default async function handler(req, res) {
+  let tenant;
+  try { tenant = verifyRequest(req); } catch (err) {
+    return res.status(err instanceof AuthError ? err.status : 401).json({ error: err.message || 'Unauthorized' });
+  }
+  // Phase 2 TODO: use tenant.controlSheetId for tenant-scoped sheet routing
   try {
     if (req.method === 'GET') {
       const state = await getDialerState();

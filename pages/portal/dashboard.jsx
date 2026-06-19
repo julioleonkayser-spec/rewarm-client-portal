@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import PortalLayout from '../../components/portal/PortalLayout';
+import { sessionFetch } from '../../lib/portal/fetcher';
 import {
   AreaChart, Area, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -51,7 +52,7 @@ export default function Dashboard() {
   const load = useCallback(async (manual = false) => {
     if (manual) setRefreshing(true);
     try {
-      const res = await fetch('/api/sheets/data?t=' + Date.now());
+      const res = await sessionFetch('/api/sheets/data?t=' + Date.now());
       const d = await res.json();
       setData(d);
       setLastRefresh(new Date());

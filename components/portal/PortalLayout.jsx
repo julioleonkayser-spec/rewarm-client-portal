@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
+import { sessionFetch } from '../../lib/portal/fetcher';
 
 const NAV = [
   {
@@ -81,7 +82,7 @@ export default function PortalLayout({ children, title }) {
       if (s.plan) setSessionPlan(s.plan);
     } catch { router.push('/portal'); }
 
-    fetch('/api/profile')
+    sessionFetch('/api/profile')
       .then(r => r.json())
       .then(d => { if (d.profile) setProfile(d.profile); })
       .catch(() => {});

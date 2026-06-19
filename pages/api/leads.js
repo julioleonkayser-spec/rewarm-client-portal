@@ -1,4 +1,6 @@
 const { getAllRows, batchWrite, colLetter, SHEET_TAB, getEffectiveSheetId } = require('../../lib/sheets');
+const { verifyRequest, AuthError } = require('../../lib/tenant-auth');
+
 const { normalize } = require('../../lib/phone');
 
 function stageFromStatus(status, hasNextAction) {
@@ -45,6 +47,11 @@ function rowToLead(headers, row, rowIndex) {
 }
 
 export default async function handler(req, res) {
+  let tenant;
+  try { tenant = verifyRequest(req); } catch (err) {
+    return res.status(err instanceof AuthError ? err.status : 401).json({ error: err.message || 'Unauthorized' });
+  }
+  // Phase 2 TODO: use tenant.controlSheetId for tenant-scoped sheet routing
   try {
     const sheetId = await getEffectiveSheetId();
 

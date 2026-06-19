@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import PortalLayout from '../../components/portal/PortalLayout';
+import { sessionFetch } from '../../lib/portal/fetcher';
 
 const STATUS_CONFIG = {
   active: {
@@ -62,8 +63,8 @@ export default function DialerControl() {
     setError(null);
     try {
       const [dr, pr] = await Promise.all([
-        fetch('/api/dialer-status'),
-        fetch('/api/plan'),
+        sessionFetch('/api/dialer-status'),
+        sessionFetch('/api/plan'),
       ]);
       const d = await dr.json();
       const p = await pr.json();
@@ -83,7 +84,7 @@ export default function DialerControl() {
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch('/api/dialer-status', {
+      const res = await sessionFetch('/api/dialer-status', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'pause', reason: 'client' }),
@@ -100,7 +101,7 @@ export default function DialerControl() {
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch('/api/dialer-status', {
+      const res = await sessionFetch('/api/dialer-status', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'resume' }),
@@ -119,7 +120,7 @@ export default function DialerControl() {
     setError(null);
     try {
       if (dialerState?.status === 'paused_no_leads') {
-        await fetch('/api/dialer-status', {
+        await sessionFetch('/api/dialer-status', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action: 'check_leads' }),
