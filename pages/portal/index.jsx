@@ -18,6 +18,7 @@ export default function PortalLogin() {
   const [claimEmail, setClaimEmail] = useState('');
   const [sent, setSent] = useState(false);
   const [sentForClaim, setSentForClaim] = useState(false);
+  const [debugLink, setDebugLink] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -35,6 +36,7 @@ export default function PortalLogin() {
     setMode(nextMode);
     setError('');
     setSent(false);
+    setDebugLink('');
     setLoading(false);
   };
 
@@ -44,11 +46,13 @@ export default function PortalLogin() {
     setLoading(true);
     setError('');
     try {
-      await fetch('/api/auth/send-magic', {
+      const res = await fetch('/api/auth/send-magic', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim() }),
       });
+      const data = await res.json().catch(() => ({}));
+      if (data.debugLink) setDebugLink(data.debugLink);
       setSentForClaim(false);
       setSent(true);
     } catch {
@@ -73,6 +77,7 @@ export default function PortalLogin() {
       const data = await res.json();
       if (data.sent) {
         localStorage.setItem('rewarm_first_run', '1');
+        if (data.debugLink) setDebugLink(data.debugLink);
         setSentForClaim(true);
         setSent(true);
       } else {
@@ -145,13 +150,25 @@ export default function PortalLogin() {
             <p className="text-xs text-stone-400 leading-relaxed">
               Didn&apos;t get it? Check your spam folder, or{' '}
               <button
-                onClick={() => { setSent(false); setError(''); }}
+                onClick={() => { setSent(false); setError(''); setDebugLink(''); }}
                 className="text-amber-600 hover:text-amber-700 font-medium underline underline-offset-2"
               >
                 try again
               </button>
               .
             </p>
+
+            {debugLink && (
+              <div className="mt-5 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                <p className="text-xs font-semibold text-amber-800 mb-2">Debug mode — use this link to sign in:</p>
+                <a
+                  href={debugLink}
+                  className="text-xs text-amber-700 break-all underline underline-offset-2 leading-relaxed"
+                >
+                  {debugLink}
+                </a>
+              </div>
+            )}
           </div>
         </div>
       </div>

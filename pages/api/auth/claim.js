@@ -41,9 +41,13 @@ export default async function handler(req, res) {
   try {
     await sendMagicLinkEmail(emailLower, magicUrl);
   } catch (err) {
-    console.error('[auth/claim] Failed to send magic link:', err.message);
-    return res.status(500).json({ error: 'Could not send the magic link email. Please try again.' });
+    console.error('[auth/claim] Failed to deliver sign-in email to', emailLower, ':', err.message);
+    return res.status(500).json({ error: 'Could not send the sign-in email. Please try again.' });
   }
 
+  if (process.env.MAGIC_LINK_DEBUG === 'true') {
+    console.log('[auth/claim] DEBUG link for', emailLower, ':', magicUrl);
+    return res.status(200).json({ sent: true, debugLink: magicUrl });
+  }
   return res.status(200).json({ sent: true });
 }
