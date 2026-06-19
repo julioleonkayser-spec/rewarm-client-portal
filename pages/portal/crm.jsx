@@ -395,8 +395,8 @@ export default function CRM() {
         </div>
 
         <p className="text-xs text-stone-400 text-center">
-          New leads come from your Google Sheet — paste new rows there, or use the CSV importer in{' '}
-          <a href="/portal/onboarding" className="text-amber-600 hover:underline">Setup</a>.
+          New leads come from your Google Sheet — paste rows directly, or{' '}
+          <a href="/portal/settings" className="text-amber-600 hover:underline">manage your sheet connection</a>.
         </p>
 
       </div>

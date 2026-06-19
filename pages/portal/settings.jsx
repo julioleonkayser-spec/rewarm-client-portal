@@ -115,7 +115,7 @@ function PlanSection({ profile, onSaved }) {
     <div className="space-y-6">
       <div>
         <h2 className="text-base font-semibold text-stone-900 dark:text-stone-100 tracking-tight">Plan</h2>
-        <p className="text-xs text-stone-500 mt-0.5">Subscription tier and billing cycle. Usage = unique leads in your connected sheet during the monthly cycle.</p>
+        <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">Your active plan and lead usage for the current billing cycle.</p>
       </div>
 
       <div className="grid sm:grid-cols-2 gap-4">
@@ -124,7 +124,7 @@ function PlanSection({ profile, onSaved }) {
           <div className="px-4 py-3 text-sm border border-stone-200 dark:border-stone-700 rounded-xl bg-stone-50 dark:bg-stone-800 text-stone-700 dark:text-stone-300">
             {profile?.plan_name || '—'}
           </div>
-          <p className="mt-1 text-xs text-stone-400">Assigned at purchase — contact support to change.</p>
+          <p className="mt-1 text-xs text-stone-400">To switch plans, contact support.</p>
         </div>
         <div>
           <label className="block text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wide mb-1.5">Billing Cycle Start</label>
@@ -132,7 +132,7 @@ function PlanSection({ profile, onSaved }) {
             type="date" value={cycleStart} onChange={e => setCycleStart(e.target.value)}
             className="w-full px-4 py-3 text-sm border border-stone-200 dark:border-stone-700 rounded-xl bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-amber-500"
           />
-          <p className="mt-1 text-xs text-stone-400">Leave blank to default to 1st of current month</p>
+          <p className="mt-1 text-xs text-stone-400">Defaults to the 1st of the month if left blank.</p>
         </div>
       </div>
 
@@ -171,7 +171,7 @@ function PlanSection({ profile, onSaved }) {
           </div>
 
           <p className="text-xs text-stone-400">
-            Cycle: {usage.billing_cycle_start} → {usage.billing_cycle_end}
+            Billing cycle: {usage.billing_cycle_start} – {usage.billing_cycle_end}
           </p>
 
           {wl === 'at_limit' && (
@@ -181,8 +181,8 @@ function PlanSection({ profile, onSaved }) {
           )}
 
           {usage.usage_method === 'total_rows' && (
-            <p className="text-[10px] text-stone-400 italic">
-              Showing total rows — no calls completed yet. Once the dialer runs, <code>date_added</code> is set automatically and usage switches to exact cycle-based counting.
+            <p className="text-[10px] text-stone-400">
+              Showing total sheet rows — once the dialer runs, usage switches to exact cycle-based counting.
             </p>
           )}
         </div>
@@ -240,72 +240,99 @@ function IntegrationsSection({ profile, onSaved }) {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-7">
       <div>
-        <h2 className="text-base font-semibold text-stone-900 dark:text-stone-100 tracking-tight">Google Sheets Integration</h2>
-        <p className="text-xs text-stone-500 mt-0.5">Connect your leads sheet so the dashboard shows real call data.</p>
+        <h2 className="text-base font-semibold text-stone-900 dark:text-stone-100 tracking-tight">Google Sheets</h2>
+        <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">
+          Your connected sheet is where the agent reads leads and records every call result. Connect it once.
+        </p>
       </div>
 
-      <div className="rounded-xl border border-stone-200 dark:border-stone-700 p-4 space-y-2">
-        <p className="text-xs font-semibold text-stone-700 dark:text-stone-300 uppercase tracking-wide">Step 1 — Share your sheet</p>
-        <p className="text-xs text-stone-500 dark:text-stone-400">Open your Google Sheet → Share → add this email as <strong>Viewer</strong>:</p>
-        {saEmail ? (
-          <div className="flex items-center gap-2">
-            <code className="flex-1 text-xs bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-lg px-3 py-2 font-mono text-stone-700 dark:text-stone-300 break-all">{saEmail}</code>
-            <button onClick={() => navigator.clipboard?.writeText(saEmail)} className="flex-shrink-0 px-3 py-2 text-xs font-medium bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-400 rounded-lg transition-colors">Copy</button>
+      {/* Current connection status */}
+      {profile?.dataSheetId && !verifyState && (
+        <div className="flex items-center gap-3 p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-200 dark:border-emerald-800">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-semibold text-emerald-800 dark:text-emerald-300">Sheet connected</p>
+            <p className="text-[11px] text-emerald-700/60 dark:text-emerald-400/60 font-mono truncate mt-0.5">{profile.dataSheetId}</p>
           </div>
-        ) : (
-          <p className="text-xs text-stone-400 italic">Loading…</p>
-        )}
-      </div>
-
-      <div className="space-y-3">
-        <p className="text-xs font-semibold text-stone-700 dark:text-stone-300 uppercase tracking-wide">Step 2 — Paste your sheet URL or ID</p>
-        <input
-          type="text" value={sheetInput}
-          onChange={e => { setSheetInput(e.target.value); setVerifyState(null); }}
-          placeholder="https://docs.google.com/spreadsheets/d/…"
-          className="w-full px-4 py-3 text-sm border border-stone-200 dark:border-stone-700 rounded-xl bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-500"
-        />
-        <button
-          onClick={verify}
-          disabled={!sheetInput.trim() || verifyState === 'loading'}
-          className="px-4 py-2.5 text-sm font-semibold rounded-xl bg-stone-800 dark:bg-stone-100 text-white dark:text-stone-900 hover:bg-stone-700 dark:hover:bg-stone-200 disabled:opacity-40 transition-colors"
-        >
-          {verifyState === 'loading' ? 'Verifying…' : 'Verify Connection'}
-        </button>
-
-        {verifyState && verifyState !== 'loading' && (
-          <div className="space-y-2">
-            <div className={`p-4 rounded-xl border text-sm ${verifyState.ok
-              ? 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300'
-              : 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400'}`}
-            >
-              {verifyState.ok
-                ? <>✓ Connected — tab: <strong>{verifyState.tab}</strong>, <strong>{verifyState.rowCount}</strong> {verifyState.rowCount === 1 ? 'lead' : 'leads'} found.</>
-                : verifyState.error}
-            </div>
-            {verifyState.ok && verifyState.missingRecommended?.length > 0 && (
-              <div className="p-3 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/10 text-xs text-amber-800 dark:text-amber-300">
-                <p className="font-semibold mb-1">Recommended columns missing: {verifyState.missingRecommended.join(', ')}</p>
-                <p><code>first_name</code> and <code>last_name</code> personalize call scripts. <code>date_added</code> is set automatically after each call and enables exact usage tracking.</p>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {profile?.dataSheetId && (
-        <div className="p-3 rounded-xl bg-stone-50 dark:bg-stone-800/50 border border-stone-200 dark:border-stone-700 text-xs text-stone-500 dark:text-stone-400">
-          Currently connected: <code className="font-mono text-stone-700 dark:text-stone-300 break-all">{profile.dataSheetId}</code>
         </div>
       )}
+
+      {/* Step 1 */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2.5">
+          <span className="w-5 h-5 rounded-full bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 text-[10px] font-bold flex items-center justify-center flex-shrink-0">1</span>
+          <p className="text-sm font-semibold text-stone-800 dark:text-stone-200">Share access with ReWarm</p>
+        </div>
+        <p className="text-xs text-stone-500 dark:text-stone-400 pl-7 leading-relaxed">
+          In Google Sheets, click <strong>Share</strong> and invite this address as a <strong>Viewer</strong>. The agent needs this access to read your leads.
+        </p>
+        <div className="pl-7">
+          {saEmail ? (
+            <div className="flex items-center gap-2">
+              <code className="flex-1 text-xs bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-lg px-3 py-2.5 font-mono text-stone-700 dark:text-stone-300 break-all">{saEmail}</code>
+              <button
+                onClick={() => navigator.clipboard?.writeText(saEmail)}
+                className="flex-shrink-0 px-3 py-2.5 text-xs font-semibold bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-400 rounded-lg transition-colors"
+              >
+                Copy
+              </button>
+            </div>
+          ) : (
+            <div className="h-10 bg-stone-100 dark:bg-stone-800 rounded-lg animate-pulse" />
+          )}
+        </div>
+      </div>
+
+      {/* Step 2 */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2.5">
+          <span className="w-5 h-5 rounded-full bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 text-[10px] font-bold flex items-center justify-center flex-shrink-0">2</span>
+          <p className="text-sm font-semibold text-stone-800 dark:text-stone-200">Paste your sheet link</p>
+        </div>
+        <div className="pl-7 space-y-2.5">
+          <input
+            type="text" value={sheetInput}
+            onChange={e => { setSheetInput(e.target.value); setVerifyState(null); }}
+            placeholder="https://docs.google.com/spreadsheets/d/…"
+            className="w-full px-4 py-3 text-sm border border-stone-200 dark:border-stone-700 rounded-xl bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-shadow"
+          />
+          <button
+            onClick={verify}
+            disabled={!sheetInput.trim() || verifyState === 'loading'}
+            className="px-4 py-2.5 text-sm font-semibold rounded-xl bg-stone-800 dark:bg-stone-100 text-white dark:text-stone-900 hover:bg-stone-700 dark:hover:bg-stone-200 disabled:opacity-40 transition-colors"
+          >
+            {verifyState === 'loading' ? 'Checking…' : 'Check Connection'}
+          </button>
+
+          {verifyState && verifyState !== 'loading' && (
+            <div className="space-y-2">
+              <div className={`p-4 rounded-xl border text-sm ${verifyState.ok
+                ? 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300'
+                : 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400'}`}
+              >
+                {verifyState.ok
+                  ? <><strong>{verifyState.rowCount}</strong> {verifyState.rowCount === 1 ? 'lead' : 'leads'} found in <strong>{verifyState.tab}</strong> — ready to save.</>
+                  : (verifyState.error?.toLowerCase().includes('auth') || verifyState.error?.toLowerCase().includes('token')
+                      ? 'Sheet not accessible. Double-check that the address above has been added as a Viewer, then try again.'
+                      : verifyState.error || 'Could not reach this sheet. Check the URL and try again.')}
+              </div>
+              {verifyState.ok && verifyState.missingRecommended?.length > 0 && (
+                <div className="p-3.5 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/10 text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
+                  Optional columns missing: <strong>{verifyState.missingRecommended.join(', ')}</strong>. The agent works without them — adding <code>first_name</code> and <code>last_name</code> personalizes each call.
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
 
       <div className="flex justify-end pt-1">
         <button
           onClick={save}
           disabled={!verifyState?.ok || saveStatus === 'saving'}
-          className={`px-4 py-2.5 text-sm font-semibold rounded-xl transition-all disabled:opacity-40 ${
+          className={`px-5 py-2.5 text-sm font-semibold rounded-xl transition-all disabled:opacity-40 ${
             saveStatus === 'saved' ? 'bg-emerald-600 text-white' : 'bg-amber-600 hover:bg-amber-700 text-white'
           }`}
         >
@@ -420,7 +447,7 @@ export default function Settings() {
               {section === 'profile' && (<>
                 <div>
                   <h2 className="text-base font-semibold text-stone-900 dark:text-stone-100 tracking-tight">Profile</h2>
-                  <p className="text-xs text-stone-500 mt-0.5">Your identity shown across the portal</p>
+                  <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">Your name and details are used by the agent on every call.</p>
                 </div>
                 <div className="grid sm:grid-cols-2 gap-4">
                   <Field label="Full Name"     value={profile.name}       onChange={upd('name')}        placeholder="Your full name" />
@@ -439,13 +466,13 @@ export default function Settings() {
               {section === 'access' && (<>
                 <div>
                   <h2 className="text-base font-semibold text-stone-900 dark:text-stone-100 tracking-tight">Access</h2>
-                  <p className="text-xs text-stone-500 mt-0.5">How you sign in to this portal</p>
+                  <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">How you access this portal.</p>
                 </div>
                 <div className="flex items-center gap-3 p-4 rounded-xl bg-stone-50 dark:bg-stone-800/50 border border-stone-200 dark:border-stone-700">
                   <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 flex-shrink-0" />
                   <div>
-                    <p className="text-sm font-semibold text-stone-700 dark:text-stone-300">Sign-in via secure email link</p>
-                    <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">Your account uses passwordless authentication. Contact support to update your access email.</p>
+                    <p className="text-sm font-semibold text-stone-700 dark:text-stone-300">Passwordless sign-in via email link</p>
+                    <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">No password required. Contact support to update your access email.</p>
                   </div>
                 </div>
                 <div>

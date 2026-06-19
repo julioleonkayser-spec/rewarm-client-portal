@@ -5,13 +5,21 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   const body = req.body || {};
   const event = body.event || '';
+  console.log('[post-call] event:', event || '(none)');
   if (event === 'call_started') return res.status(200).json({ status: 'acknowledged' });
   const call = body.call || {};
-  if (!Object.keys(call).length) return res.status(200).json({ status: 'no_call_data' });
+  if (!Object.keys(call).length) {
+    console.log('[post-call] EARLY RETURN — no call object in payload');
+    return res.status(200).json({ status: 'no_call_data' });
+  }
   const analysis = call.call_analysis || {};
   const custom = analysis.custom_analysis_data || {};
   const rawPhone = call.to_number || call.from_number || '';
-  if (!rawPhone) return res.status(400).json({ error: 'No phone number in payload' });
+  console.log('[post-call] call_id:', call.call_id || 'unknown', '| to:', call.to_number || 'none', '| disconnection_reason:', call.disconnection_reason || 'none');
+  if (!rawPhone) {
+    console.log('[post-call] EARLY RETURN — no phone number in payload');
+    return res.status(400).json({ error: 'No phone number in payload' });
+  }
   const target = normalize(rawPhone);
   try {
     const sheetId = await getEffectiveSheetId();
@@ -22,7 +30,11 @@ export default async function handler(req, res) {
     for (let i = 1; i < rows.length; i++) {
       if (normalize(rows[i][phoneCol] || '') === target) { sheetsRow = i + 1; break; }
     }
-    if (sheetsRow === -1) return res.status(404).json({ error: 'Lead not found' });
+    console.log('[post-call] sheetId:', sheetId ? sheetId.slice(0, 12) + '...' : 'NULL', '| rows:', rows.length - 1, '| target phone (normalized):', target);
+    if (sheetsRow === -1) {
+      console.log('[post-call] EARLY RETURN — lead not found for phone:', target);
+      return res.status(404).json({ error: 'Lead not found' });
+    }
     let callStatus = custom.call_status || '';
     if (!callStatus) {
       const reason = (call.disconnection_reason || '').toLowerCase();
@@ -73,6 +85,7 @@ export default async function handler(req, res) {
     if (!existingDateAdded) {
       data.push({ range: SHEET_TAB + '!' + colLetter(dateAddedColIdx) + sheetsRow, values: [[today]] });
     }
+    console.log('[post-call] writing', data.length, 'cells | row:', sheetsRow, '| call_status:', callStatus);
     if (data.length) await batchWrite(data, sheetId);
     return res.status(200).json({ status: 'updated', row: sheetsRow, call_status: callStatus });
   } catch (err) {

@@ -19,12 +19,8 @@ const RECOMMENDED_COLUMNS = [
 
 export default function Onboarding() {
   const [step, setStep]               = useState(1);
-  const [firstName, setFirstName]     = useState('');
-  const [saEmail, setSaEmail]         = useState('');
-  const [sheetInput, setSheetInput]   = useState('');
-  const [verifyState, setVerifyState] = useState(null);
-  const [connecting, setConnecting]   = useState(false);
-  const [connected, setConnected]     = useState(false);
+  const [firstName, setFirstName] = useState('');
+  const [connected, setConnected] = useState(false);
 
   useEffect(() => {
     fetch('/api/profile')
@@ -32,48 +28,12 @@ export default function Onboarding() {
       .then(d => {
         if (!d.profile) return;
         setFirstName(d.profile.name?.split(' ')[0] || '');
-        if (d.profile.dataSheetId) {
-          setSheetInput(d.profile.dataSheetId);
-          setConnected(true);
-        }
+        if (d.profile.dataSheetId) setConnected(true);
       })
-      .catch(() => {});
-    fetch('/api/sheets/data')
-      .then(r => r.json())
-      .then(d => { if (d.serviceAccountEmail) setSaEmail(d.serviceAccountEmail); })
       .catch(() => {});
   }, []);
 
   const progress = Math.round((step - 1) / (STEPS.length - 1) * 100);
-
-  const verify = async () => {
-    setVerifyState('loading');
-    try {
-      const res = await fetch('/api/sheets/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sheetId: sheetInput }),
-      });
-      setVerifyState(await res.json());
-    } catch (e) {
-      setVerifyState({ ok: false, error: e.message });
-    }
-  };
-
-  const connect = async () => {
-    if (!verifyState?.ok) return;
-    setConnecting(true);
-    try {
-      await fetch('/api/profile', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dataSheetId: verifyState.sheetId }),
-      });
-      setConnected(true);
-      setTimeout(() => setStep(3), 600);
-    } catch {}
-    setConnecting(false);
-  };
 
   useEffect(() => {
     if (step === 4) {
@@ -179,71 +139,29 @@ export default function Onboarding() {
               <div>
                 <h1 className="text-xl font-bold text-stone-900 dark:text-stone-100 tracking-tight mb-1">Connect your sheet</h1>
                 <p className="text-sm text-stone-500 dark:text-stone-400 mb-6 leading-relaxed">
-                  The agent reads leads and writes results directly to your Google Sheet. Two steps: share it, then paste the URL.
+                  Link your Google Sheet so the agent can read leads and write results automatically.
                 </p>
 
-                <div className="space-y-5">
-                  <div className="rounded-xl border border-stone-200 dark:border-stone-700 p-4 space-y-2">
-                    <p className="text-xs font-semibold text-stone-700 dark:text-stone-300 uppercase tracking-wide">Step 1 — Share your sheet</p>
-                    <p className="text-xs text-stone-500 dark:text-stone-400">Open your Google Sheet → Share → add this email as <strong>Viewer</strong>:</p>
-                    {saEmail ? (
-                      <div className="flex items-center gap-2">
-                        <code className="flex-1 text-xs bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-lg px-3 py-2 font-mono text-stone-700 dark:text-stone-300 break-all">{saEmail}</code>
-                        <button onClick={() => navigator.clipboard?.writeText(saEmail)} className="flex-shrink-0 px-3 py-2 text-xs font-medium bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-400 rounded-lg transition-colors">Copy</button>
-                      </div>
-                    ) : (
-                      <p className="text-xs text-stone-400 italic">Loading…</p>
-                    )}
+                {connected ? (
+                  <div className="flex items-center gap-3 p-4 rounded-xl bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-200 dark:border-emerald-800">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 flex-shrink-0">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">Sheet connected ✓</p>
                   </div>
-
-                  <div className="space-y-3">
-                    <p className="text-xs font-semibold text-stone-700 dark:text-stone-300 uppercase tracking-wide">Step 2 — Paste your sheet URL</p>
-                    <input
-                      type="text" value={sheetInput}
-                      onChange={e => { setSheetInput(e.target.value); setVerifyState(null); setConnected(false); }}
-                      placeholder="https://docs.google.com/spreadsheets/d/…"
-                      className="w-full px-4 py-3 text-sm border border-stone-200 dark:border-stone-700 rounded-xl bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                    />
-                    <button
-                      onClick={verify}
-                      disabled={!sheetInput.trim() || verifyState === 'loading'}
-                      className="px-4 py-2.5 text-sm font-semibold rounded-xl bg-stone-800 dark:bg-stone-100 text-white dark:text-stone-900 hover:bg-stone-700 dark:hover:bg-stone-200 disabled:opacity-40 transition-colors"
+                ) : (
+                  <div className="p-5 rounded-xl bg-stone-50 dark:bg-stone-800/50 border border-stone-200 dark:border-stone-700 space-y-3">
+                    <p className="text-sm text-stone-700 dark:text-stone-300 leading-relaxed">
+                      To connect your Google Sheet, go to <strong>Settings → Integrations</strong>. Once connected there, ReWarm will use that sheet automatically.
+                    </p>
+                    <a
+                      href="/portal/settings"
+                      className="inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-semibold rounded-xl bg-amber-600 hover:bg-amber-700 text-white transition-colors"
                     >
-                      {verifyState === 'loading' ? 'Checking…' : 'Verify Connection'}
-                    </button>
-
-                    {verifyState && verifyState !== 'loading' && (
-                      <div className="space-y-2">
-                        <div className={`p-4 rounded-xl border text-sm ${verifyState.ok
-                          ? 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300'
-                          : 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400'}`}
-                        >
-                          {verifyState.ok
-                            ? <>✓ Sheet found — <strong>{verifyState.rowCount}</strong> {verifyState.rowCount === 1 ? 'lead' : 'leads'} in tab <strong>{verifyState.tab}</strong>.</>
-                            : verifyState.error}
-                        </div>
-                        {verifyState.ok && verifyState.missingRecommended?.length > 0 && (
-                          <div className="p-3 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/10 text-xs text-amber-800 dark:text-amber-300">
-                            Recommended columns missing: <strong>{verifyState.missingRecommended.join(', ')}</strong>. You can add them now or later — the agent runs without them.
-                          </div>
-                        )}
-                        {verifyState.ok && (
-                          <button
-                            onClick={connect}
-                            disabled={connecting || connected}
-                            className={`w-full py-3 text-sm font-semibold rounded-xl transition-all ${
-                              connected
-                                ? 'bg-emerald-600 text-white opacity-80'
-                                : 'bg-amber-600 hover:bg-amber-700 text-white disabled:opacity-60'
-                            }`}
-                          >
-                            {connected ? '✓ Sheet connected — continuing…' : connecting ? 'Saving…' : 'Save Connection'}
-                          </button>
-                        )}
-                      </div>
-                    )}
+                      Go to Settings →
+                    </a>
                   </div>
-                </div>
+                )}
               </div>
             )}
 
@@ -335,7 +253,7 @@ export default function Onboarding() {
               <span className="text-xs text-stone-400">Step {step} of {STEPS.length} · {STEPS[step - 1].time}</span>
               <button
                 onClick={() => setStep(s => Math.min(STEPS.length, s + 1))}
-                disabled={step === 2 && !connected}
+                disabled={false}
                 className="text-sm font-semibold text-amber-600 hover:text-amber-700 disabled:text-stone-300 dark:disabled:text-stone-600 disabled:cursor-not-allowed transition-colors"
               >
                 {step === 3 ? 'Finish →' : 'Continue →'}

@@ -7,8 +7,10 @@ export default async function handler(req, res) {
   const rawPhone = body.phone_number || body.to_number || body.from_number || '';
   if (!rawPhone) return res.status(400).json({ error: 'phone_number is required' });
   const target = normalize(rawPhone);
+  console.log('[pre-call] lookup for phone (normalized):', target);
   try {
     const sheetId = await getEffectiveSheetId();
+    console.log('[pre-call] sheetId:', sheetId ? sheetId.slice(0, 12) + '...' : 'NULL');
     const rows = await getAllRows(sheetId);
     const headers = rows[0];
     const phoneCol = headers.indexOf('phone_number');
@@ -26,6 +28,7 @@ export default async function handler(req, res) {
         transfer_number:  get('transfer_number'),
       });
     }
+    console.log('[pre-call] EARLY RETURN — lead not found for phone:', target);
     return res.status(404).json({ error: 'Lead not found' });
   } catch (err) {
     return res.status(500).json({ error: err.message });

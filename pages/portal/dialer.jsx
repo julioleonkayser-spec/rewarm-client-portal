@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import PortalLayout from '../../components/portal/PortalLayout';
+import PageHeader from '../../components/portal/PageHeader';
 import { sessionFetch } from '../../lib/portal/fetcher';
 
 const STATUS_CONFIG = {
@@ -177,16 +178,15 @@ export default function DialerControl() {
     <PortalLayout title="Dialer">
       <div className="max-w-2xl mx-auto space-y-5">
 
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-semibold text-stone-900 dark:text-stone-100 tracking-tight">Dialer</h1>
-            <p className="text-xs text-stone-400 mt-0.5">Pause or resume your calling agent</p>
-          </div>
+        <PageHeader
+          eyebrow="Calling agent"
+          title="Dialer"
+          subtitle="Control when your agent makes calls. Pause at any time — resuming is instant."
+        >
           <button
             onClick={refresh}
             disabled={busy}
-            className="flex items-center gap-2 px-3 py-2 text-xs font-medium bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-400 rounded-xl transition-colors disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-3 py-2 text-xs font-medium bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-400 rounded-xl transition-colors disabled:opacity-50"
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
               <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
@@ -194,7 +194,7 @@ export default function DialerControl() {
             </svg>
             Refresh
           </button>
-        </div>
+        </PageHeader>
 
         {error && (
           <div className="p-4 rounded-xl bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900/40 text-sm text-red-700 dark:text-red-400">
@@ -257,15 +257,15 @@ export default function DialerControl() {
         {plan && (
           <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl p-6 space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-stone-800 dark:text-stone-200">{plan.plan_name} Plan — Usage</h2>
+              <h2 className="text-sm font-semibold text-stone-800 dark:text-stone-200">{plan.plan_name} — Usage this cycle</h2>
               {plan.warning_level === 'at_limit' && (
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400">LIMIT REACHED</span>
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400">Limit reached</span>
               )}
               {plan.warning_level === 'warning_80' && (
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400">80% USED</span>
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400">80% used</span>
               )}
               {plan.warning_level === 'warning_50' && (
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">50% USED</span>
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">50% used</span>
               )}
             </div>
 
@@ -294,12 +294,12 @@ export default function DialerControl() {
             </div>
 
             <p className="text-xs text-stone-400">
-              Billing cycle: {plan.billing_cycle_start} → {plan.billing_cycle_end}
+              Billing cycle: {plan.billing_cycle_start} – {plan.billing_cycle_end}
             </p>
 
             {plan.usage_method === 'total_rows' && (
-              <p className="text-[10px] text-stone-400 italic">
-                No <code>date_added</code> column detected — usage shown as total row count
+              <p className="text-[10px] text-stone-400">
+                Showing total sheet rows — usage switches to exact cycle tracking once the dialer has run.
               </p>
             )}
           </div>

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import PortalLayout from '../../components/portal/PortalLayout';
+import PageHeader from '../../components/portal/PageHeader';
 import { sessionFetch } from '../../lib/portal/fetcher';
 import {
   AreaChart, Area, PieChart, Pie, Cell,
@@ -103,20 +104,17 @@ export default function Dashboard() {
     <PortalLayout title="Dashboard">
       <div className="max-w-6xl mx-auto space-y-6">
 
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-semibold text-stone-900 dark:text-stone-100 tracking-tight">Dashboard</h1>
-            {lastRefresh && (
-              <p className="text-xs text-stone-400 mt-0.5">
-                Updated {lastRefresh.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · refreshes every 30s
-              </p>
-            )}
-          </div>
+        <PageHeader
+          eyebrow="Overview"
+          title="Dashboard"
+          subtitle={lastRefresh
+            ? `Auto-refreshes every 30s · last updated ${lastRefresh.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+            : 'Auto-refreshes every 30s'}
+        >
           <button
             onClick={() => load(true)}
             disabled={refreshing}
-            className="flex items-center gap-2 px-3 py-2 text-xs font-medium bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-400 rounded-xl transition-colors disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-3 py-2 text-xs font-medium bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-400 rounded-xl transition-colors disabled:opacity-50"
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
               className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`}>
@@ -125,7 +123,7 @@ export default function Dashboard() {
             </svg>
             {refreshing ? 'Refreshing…' : 'Refresh'}
           </button>
-        </div>
+        </PageHeader>
 
         {/* Status banners */}
         {sheetStatus === 'not_configured' && (
@@ -148,13 +146,13 @@ export default function Dashboard() {
               <div className="flex items-center gap-2 min-w-0">
                 <span className="text-xs font-semibold text-stone-700 dark:text-stone-300 whitespace-nowrap">{data.plan.plan_name} Plan</span>
                 {data.plan.warning_level === 'at_limit' && (
-                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 whitespace-nowrap">LIMIT REACHED</span>
+                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 whitespace-nowrap">Limit reached</span>
                 )}
                 {data.plan.warning_level === 'warning_80' && (
-                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 whitespace-nowrap">80% USED</span>
+                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 whitespace-nowrap">80% used</span>
                 )}
                 {data.plan.warning_level === 'warning_50' && (
-                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 whitespace-nowrap">50% USED</span>
+                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 whitespace-nowrap">50% used</span>
                 )}
               </div>
               <span className="text-xs text-stone-400 whitespace-nowrap flex-shrink-0">
@@ -180,7 +178,7 @@ export default function Dashboard() {
         {/* KPI cards */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
           <KpiCard label="Total Leads"  value={allLeads.length}  sub="in your sheet"              valueColor="text-stone-900 dark:text-stone-100" />
-          <KpiCard label="Called"       value={kpis.total}       sub="calls with outcome"          valueColor="text-blue-600 dark:text-blue-400" />
+          <KpiCard label="Called"       value={kpis.total}       sub="calls with outcome"          valueColor="text-stone-700 dark:text-stone-200" />
           <KpiCard label="Pending"      value={kpis.pending}     sub="not yet called"              valueColor="text-stone-500 dark:text-stone-400" />
           <KpiCard label="Hot Leads"    value={kpis.hot}         sub={`${kpis.hotPct}% of called`} valueColor="text-emerald-600 dark:text-emerald-400" />
           <KpiCard label="Avg Quality"  value={kpis.avgQ || '—'} sub="interest score (0–10)"       valueColor="text-amber-600 dark:text-amber-400" />
@@ -224,7 +222,7 @@ export default function Dashboard() {
                       <stop offset="95%" stopColor="#d97706" stopOpacity={0}/>
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f4" vertical={false}/>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false}/>
                   <XAxis dataKey="date" tick={{ fontSize: 9, fill: '#78716c' }} axisLine={false} tickLine={false} interval={5}/>
                   <YAxis tick={{ fontSize: 10, fill: '#78716c' }} axisLine={false} tickLine={false} allowDecimals={false}/>
                   <Tooltip content={<Tip />}/>
@@ -273,7 +271,7 @@ export default function Dashboard() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-stone-100 dark:border-stone-800 bg-stone-50 dark:bg-stone-800/50">
-                    {['Name / Phone', 'Source', 'Interest', 'Status', 'Quality', 'Date'].map(h => (
+                    {['Lead', 'Source', 'Interest', 'Status', 'Quality', 'Date'].map(h => (
                       <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold text-stone-500 dark:text-stone-400 whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
