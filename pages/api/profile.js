@@ -28,18 +28,17 @@ export default async function handler(req, res) {
   try { tenant = verifyRequest(req); } catch (err) {
     return res.status(err instanceof AuthError ? err.status : 401).json({ error: err.message || 'Unauthorized' });
   }
-  // Phase 2 TODO: use tenant.controlSheetId for tenant-scoped sheet routing
   try {
     if (req.method === 'GET') {
-      const profile = await getProfile();
+      const profile = await getProfile(tenant.controlSheetId);
       return res.status(200).json({ profile: profile || DEFAULT_PROFILE, isDefault: !profile });
     }
 
     if (req.method === 'PUT') {
       const incoming = req.body || {};
-      const existing = (await getProfile()) || DEFAULT_PROFILE;
+      const existing = (await getProfile(tenant.controlSheetId)) || DEFAULT_PROFILE;
       const merged = { ...existing, ...incoming };
-      await setProfile(merged);
+      await setProfile(merged, tenant.controlSheetId);
       return res.status(200).json({ profile: merged });
     }
 

@@ -51,9 +51,8 @@ export default async function handler(req, res) {
   try { tenant = verifyRequest(req); } catch (err) {
     return res.status(err instanceof AuthError ? err.status : 401).json({ error: err.message || 'Unauthorized' });
   }
-  // Phase 2 TODO: use tenant.controlSheetId for tenant-scoped sheet routing
   try {
-    const sheetId = await getEffectiveSheetId();
+    const sheetId = await getEffectiveSheetId(tenant.controlSheetId);
 
     if (req.method === 'GET') {
       const rows = await getAllRows(sheetId);

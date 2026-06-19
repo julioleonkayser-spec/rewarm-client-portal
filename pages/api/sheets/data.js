@@ -85,17 +85,16 @@ export default async function handler(req, res) {
   try { tenant = verifyRequest(req); } catch (err) {
     return res.status(err instanceof AuthError ? err.status : 401).json({ error: err.message || 'Unauthorized' });
   }
-  // Phase 2 TODO: use tenant.controlSheetId for tenant-scoped sheet routing
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
   res.setHeader('Cache-Control', 's-maxage=30,stale-while-revalidate=59');
 
   let sheetId;
   let profile = null;
   try {
-    profile = await getProfile();
-    sheetId = profile?.dataSheetId || process.env.GOOGLE_SHEETS_ID || process.env.GOOGLE_SHEET_ID;
+    profile = await getProfile(tenant.controlSheetId);
+    sheetId = profile?.dataSheetId || tenant.controlSheetId;
   } catch {
-    sheetId = process.env.GOOGLE_SHEETS_ID || process.env.GOOGLE_SHEET_ID;
+    sheetId = tenant.controlSheetId;
   }
 
   if (!sheetId) {
