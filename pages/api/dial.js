@@ -56,8 +56,21 @@ export default async function handler(req, res) {
     }
 
     console.log('[dial] processing', tenants.length, 'tenant(s):', tenants.map(t => t.tenantId).join(', '));
-    const results = await Promise.all(tenants.map(tenant => processTenant(tenant)));
-    return res.status(200).json({ results });
+
+    const TIMEOUT_MS = 25000;
+    const timeoutPromise = new Promise(resolve =>
+      setTimeout(() => resolve({ timedOut: true, results: [] }), TIMEOUT_MS)
+    );
+    const processingPromise = Promise.all(tenants.map(t => processTenant(t)))
+      .then(results => ({ timedOut: false, results }));
+
+    const { timedOut, results } = await Promise.race([processingPromise, timeoutPromise]);
+
+    if (timedOut) {
+      console.warn('[dial] response timeout hit — returning partial results');
+    }
+
+    return res.status(200).json({ results, ...(timedOut && { warning: 'partial_timeout' }) });
   } catch (err) {
     console.error('[dial] unhandled error:', err.message);
     return res.status(500).json({ error: err.message });
