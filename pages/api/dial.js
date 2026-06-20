@@ -44,6 +44,9 @@ export default async function handler(req, res) {
       console.log('[dial] EARLY RETURN — unauthorized: Authorization header mismatch');
       return res.status(401).json({ error: 'Unauthorized' });
     }
+  } else if (process.env.MULTI_TENANT === 'true') {
+    console.error('[dial] CRON_SECRET is not set in MULTI_TENANT mode — refusing');
+    return res.status(500).json({ error: 'Server misconfiguration: CRON_SECRET is required when MULTI_TENANT=true' });
   }
 
   console.log('[dial] invoked | method:', req.method);

@@ -38,7 +38,7 @@ export default async function handler(req, res) {
 
     if (req.method === 'PUT') {
       const incoming = req.body || {};
-      const SERVER_ONLY = ['plan_name', 'billing_cycle_start', 'owner_email'];
+      const SERVER_ONLY = ['plan_name', 'billing_cycle_start', 'owner_email', 'dataSheetId'];
       SERVER_ONLY.forEach(f => delete incoming[f]);
       const existing = (await getProfile(tenant.controlSheetId)) || DEFAULT_PROFILE;
       const merged = { ...existing, ...incoming };

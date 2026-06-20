@@ -26,7 +26,11 @@ export default async function handler(req, res) {
   if (!rawPhone) return res.status(400).json({ error: 'phone_number is required' });
   const target = normalize(rawPhone);
   const controlSheetId = body.retell_llm_dynamic_variables?.control_sheet_id || null;
-  console.log('[pre-call] lookup for phone (normalized):', target, '| controlSheetId:', controlSheetId ? controlSheetId.slice(0, 12) + '...' : 'from-env');
+  if (!controlSheetId) {
+    console.error('[pre-call] control_sheet_id missing from Retell payload — refusing');
+    return res.status(400).json({ error: 'Missing control_sheet_id in retell_llm_dynamic_variables' });
+  }
+  console.log('[pre-call] lookup for phone (normalized):', target, '| controlSheetId:', controlSheetId.slice(0, 12) + '...');
   try {
     const sheetId = await getEffectiveSheetId(controlSheetId);
     console.log('[pre-call] sheetId:', sheetId ? sheetId.slice(0, 12) + '...' : 'NULL');

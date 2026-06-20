@@ -1,5 +1,6 @@
 import { getSheetsClient, parseSheetId, getServiceAccountEmail, RO } from '../../../lib/sheets-client';
 const { verifyRequest, AuthError } = require('../../../lib/tenant-auth');
+const { getProfile, setProfile } = require('../../../lib/sheets');
 
 
 const REQUIRED_HEADERS = [
@@ -38,6 +39,13 @@ export default async function handler(req, res) {
     const full = await client.spreadsheets.values.get({ spreadsheetId: sheetId, range: `${tab}!A:A` });
     const rowCount = Math.max(0, (full.data.values?.length || 1) - 1);
     const missingRecommended = RECOMMENDED_HEADERS.filter(h => !headers.includes(h));
+    try {
+      const existing = (await getProfile(tenant.controlSheetId)) || {};
+      await setProfile({ ...existing, dataSheetId: sheetId }, tenant.controlSheetId);
+    } catch (saveErr) {
+      console.error('[sheets/verify] profile save failed:', saveErr.message);
+      return res.status(500).json({ ok: false, error: 'Sheet is accessible but could not save the connection. Please try again.' });
+    }
     return res.status(200).json({ ok: true, sheetId, rowCount, tab, missingRecommended });
   } catch (err) {
     if (err.code === 403 || err.status === 403) {

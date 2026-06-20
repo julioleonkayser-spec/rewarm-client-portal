@@ -34,7 +34,11 @@ export default async function handler(req, res) {
   const custom = analysis.custom_analysis_data || {};
   const rawPhone = call.to_number || call.from_number || '';
   const controlSheetId = call.retell_llm_dynamic_variables?.control_sheet_id || null;
-  console.log('[post-call] call_id:', call.call_id || 'unknown', '| to:', call.to_number || 'none', '| disconnection_reason:', call.disconnection_reason || 'none', '| controlSheetId:', controlSheetId ? controlSheetId.slice(0, 12) + '...' : 'from-env');
+  if (!controlSheetId) {
+    console.error('[post-call] control_sheet_id missing from Retell payload — refusing');
+    return res.status(400).json({ error: 'Missing control_sheet_id in retell_llm_dynamic_variables' });
+  }
+  console.log('[post-call] call_id:', call.call_id || 'unknown', '| to:', call.to_number || 'none', '| disconnection_reason:', call.disconnection_reason || 'none', '| controlSheetId:', controlSheetId.slice(0, 12) + '...');
   if (!rawPhone) {
     console.log('[post-call] EARLY RETURN — no phone number in payload');
     return res.status(400).json({ error: 'No phone number in payload' });

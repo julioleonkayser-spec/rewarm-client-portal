@@ -221,7 +221,9 @@ function IntegrationsSection({ profile, onSaved }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sheetId: sheetInput }),
       });
-      setVerifyState(await res.json());
+      const result = await res.json();
+      setVerifyState(result);
+      if (result.ok) onSaved?.();
     } catch (e) {
       setVerifyState({ ok: false, error: e.message });
     }
@@ -233,7 +235,7 @@ function IntegrationsSection({ profile, onSaved }) {
       const res = await sessionFetch('/api/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dataSheetId: verifyState?.sheetId || sheetInput, retell_agent_id: retellAgentId }),
+        body: JSON.stringify({ retell_agent_id: retellAgentId }),
       });
       if (!res.ok) throw new Error('Save failed');
       setSaveStatus('saved');
