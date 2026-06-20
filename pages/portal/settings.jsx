@@ -475,13 +475,10 @@ export default function Settings() {
                     <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">No password required. Contact support to update your access email.</p>
                   </div>
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wide mb-1.5">Your Portal Access Key</label>
-                  <div className="flex gap-2">
-                    <input readOnly value="REWARM-DEMO-2024" className="flex-1 px-4 py-3 text-sm font-mono border border-stone-200 dark:border-stone-700 rounded-xl bg-stone-50 dark:bg-stone-800 text-stone-600 dark:text-stone-400 focus:outline-none" />
-                    <button onClick={() => navigator.clipboard?.writeText('REWARM-DEMO-2024')} className="px-4 py-3 text-sm font-medium bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-400 rounded-xl transition-colors flex-shrink-0">Copy</button>
-                  </div>
-                  <p className="mt-1.5 text-xs text-stone-400">Use this key as an alternative sign-in method when prompted.</p>
+                <div className="p-4 rounded-xl bg-stone-50 dark:bg-stone-800/50 border border-stone-200 dark:border-stone-700">
+                  <p className="text-sm text-stone-700 dark:text-stone-300 leading-relaxed">
+                    Your access key was included in your welcome email. Contact support if you need it resent.
+                  </p>
                 </div>
               </>)}
             </div>

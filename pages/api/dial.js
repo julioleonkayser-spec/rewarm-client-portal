@@ -1,6 +1,36 @@
 const { getAllRows, getDialerState, setDialerStatus, getProfile, getEffectiveSheetId } = require('../../lib/sheets');
+const { getAllTenants } = require('../../lib/tenant-auth');
 const { buildPlanSummary } = require('../../lib/plan-config');
 const { toE164 } = require('../../lib/phone');
+
+async function sendNoLeadsEmail(ownerEmail, leadCount) {
+  const apiKey = (process.env.RESEND_API_KEY || '').trim();
+  if (!apiKey) {
+    console.warn('[dial] RESEND_API_KEY not set — skipping paused_no_leads email');
+    return;
+  }
+  const from = process.env.RESEND_FROM_EMAIL || 'noreply@rewarm.ai';
+  try {
+    const r = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from,
+        to: [ownerEmail],
+        subject: 'Your ReWarm agent has called all your leads',
+        html: `<p>Your AI agent finished calling all ${leadCount} lead${leadCount === 1 ? '' : 's'} in your sheet.</p><p>Add new leads to your sheet to continue.</p><p><a href="https://rewarm-client-portal.vercel.app">Log in to ReWarm</a></p>`,
+      }),
+    });
+    if (!r.ok) {
+      const detail = await r.text().catch(() => r.statusText);
+      console.error('[dial] Resend error sending paused_no_leads email:', r.status, detail);
+    } else {
+      console.log('[dial] paused_no_leads email sent to', ownerEmail);
+    }
+  } catch (err) {
+    console.error('[dial] failed to send paused_no_leads email:', err.message);
+  }
+}
 
 export default async function handler(req, res) {
   if (!['GET', 'POST'].includes(req.method)) return res.status(405).json({ error: 'Method not allowed' });
@@ -14,34 +44,56 @@ export default async function handler(req, res) {
     }
   }
 
-  // Optional query param for multi-tenant cron setups:
-  // cron-job.org URL: /api/dial?controlSheetId=<sheetId>
-  const controlSheetId = req.query.controlSheetId || null;
+  console.log('[dial] invoked | method:', req.method);
 
-  console.log('[dial] invoked | method:', req.method, '| controlSheetId:', controlSheetId ? controlSheetId.slice(0, 12) + '...' : 'from-env');
+  try {
+    const tenants = getAllTenants();
+    if (!tenants.length) {
+      console.log('[dial] no tenants configured');
+      return res.status(200).json({ results: [], message: 'No tenants configured' });
+    }
+
+    console.log('[dial] processing', tenants.length, 'tenant(s):', tenants.map(t => t.tenantId).join(', '));
+    const results = await Promise.all(tenants.map(tenant => processTenant(tenant)));
+    return res.status(200).json({ results });
+  } catch (err) {
+    console.error('[dial] unhandled error:', err.message);
+    return res.status(500).json({ error: err.message });
+  }
+}
+
+async function processTenant(tenant) {
+  const { tenantId, controlSheetId } = tenant;
+  console.log('[dial]', tenantId, '| controlSheetId:', controlSheetId ? controlSheetId.slice(0, 12) + '...' : 'NULL');
 
   try {
     const dialerState = await getDialerState(controlSheetId);
-    console.log('[dial] dialer state:', dialerState.status, '(raw:', dialerState.raw + ')');
+    console.log('[dial]', tenantId, '| dialer state:', dialerState.status, '(raw:', dialerState.raw + ')');
 
     if (dialerState.status !== 'active') {
-      console.log('[dial] EARLY RETURN — dialer not active, status:', dialerState.status);
-      return res.status(200).json({ status: dialerState.status, message: 'Dialer is not active — no call placed' });
+      return { tenant: tenantId, status: dialerState.status };
     }
 
     const profile = await getProfile(controlSheetId);
     const sheetId = await getEffectiveSheetId(controlSheetId);
-    console.log('[dial] effective data sheetId:', sheetId ? sheetId.slice(0, 12) + '...' : 'NULL', '| plan:', profile?.plan_name || 'unknown');
+    console.log('[dial]', tenantId, '| effective sheetId:', sheetId ? sheetId.slice(0, 12) + '...' : 'NULL', '| plan:', profile?.plan_name || 'unknown');
 
     const rows = await getAllRows(sheetId);
-    console.log('[dial] sheet loaded:', rows.length - 1, 'leads');
+
+    if (rows.length === 0) {
+      await setDialerStatus('PAUSED_NO_LEADS', controlSheetId);
+      console.log('[dial]', tenantId, '| empty sheet (no rows), paused');
+      if (profile?.owner_email) await sendNoLeadsEmail(profile.owner_email, 0);
+      return { tenant: tenantId, status: 'paused_no_leads' };
+    }
+
+    console.log('[dial]', tenantId, '| leads:', rows.length - 1);
 
     const plan = buildPlanSummary(profile, rows);
-    console.log('[dial] plan usage:', plan.leads_added_this_cycle, '/', plan.monthly_lead_cap, '| at_limit:', plan.at_limit);
     if (plan.at_limit) {
       await setDialerStatus('PAUSED_BY_LIMIT', controlSheetId);
-      console.log('[dial] EARLY RETURN — plan limit reached, dialer paused');
-      return res.status(200).json({ status: 'paused_by_limit', message: 'Monthly lead cap reached — dialer paused' });
+      console.log('[dial]', tenantId, '| plan limit reached, paused');
+      return { tenant: tenantId, status: 'paused_by_limit' };
     }
 
     const headers = rows[0];
@@ -57,20 +109,21 @@ export default async function handler(req, res) {
 
     if (!lead) {
       await setDialerStatus('PAUSED_NO_LEADS', controlSheetId);
-      console.log('[dial] EARLY RETURN — no uncalled leads, dialer paused');
-      return res.status(200).json({ status: 'paused_no_leads', message: 'No uncalled leads remaining — dialer paused' });
+      console.log('[dial]', tenantId, '| no uncalled leads, paused');
+      const totalLeads = rows.length - 1;
+      if (profile?.owner_email) await sendNoLeadsEmail(profile.owner_email, totalLeads);
+      return { tenant: tenantId, status: 'paused_no_leads' };
     }
 
     const toNum = toE164(lead.phone_number);
     const xfer  = toE164(lead.transfer_number);
 
-    // Fail fast if Retell env vars are missing — avoids a silent 4xx to Retell.
     const retellKey   = process.env.RETELL_API_KEY;
     const retellAgent = process.env.RETELL_AGENT_ID;
     const retellFrom  = process.env.RETELL_FROM_NUMBER;
     if (!retellKey || !retellAgent || !retellFrom) {
-      console.error('[dial] EARLY RETURN — Retell env vars missing | RETELL_API_KEY:', !!retellKey, '| RETELL_AGENT_ID:', !!retellAgent, '| RETELL_FROM_NUMBER:', !!retellFrom);
-      return res.status(500).json({ error: 'Retell configuration incomplete — set RETELL_API_KEY, RETELL_AGENT_ID, RETELL_FROM_NUMBER in Vercel' });
+      console.error('[dial]', tenantId, '| Retell env vars missing | RETELL_API_KEY:', !!retellKey, '| RETELL_AGENT_ID:', !!retellAgent, '| RETELL_FROM_NUMBER:', !!retellFrom);
+      return { tenant: tenantId, status: 'error', error: 'Retell configuration incomplete' };
     }
 
     const payload = {
@@ -85,10 +138,11 @@ export default async function handler(req, res) {
         original_interest: lead.original_interest,
         agent_name:        lead.agent_name || process.env.AGENT_NAME || '',
         transfer_number:   xfer || (process.env.TRANSFER_PHONE_NUMBER ? toE164(process.env.TRANSFER_PHONE_NUMBER) : ''),
+        control_sheet_id:  controlSheetId || '',
       },
     };
 
-    console.log('[dial] placing call | to:', toNum, '| lead:', lead.first_name, lead.last_name, '| from:', retellFrom, '| agent:', retellAgent);
+    console.log('[dial]', tenantId, '| placing call | to:', toNum, '| lead:', lead.first_name, lead.last_name, '| from:', retellFrom, '| agent:', retellAgent);
 
     const retellRes = await fetch('https://api.retellai.com/v2/create-phone-call', {
       method: 'POST',
@@ -98,22 +152,23 @@ export default async function handler(req, res) {
 
     const retellBody = await retellRes.text();
     if (!retellRes.ok) {
-      console.error('[dial] Retell error | status:', retellRes.status, '| body:', retellBody);
-      return res.status(502).json({ error: 'Retell API error: ' + retellBody });
+      console.error('[dial]', tenantId, '| Retell error | status:', retellRes.status, '| body:', retellBody);
+      return { tenant: tenantId, status: 'error', error: 'Retell API error: ' + retellBody };
     }
 
     const result    = JSON.parse(retellBody);
     const remaining = rows.slice(1).filter(r => !(r[statusCol] || '').trim()).length - 1;
-    console.log('[dial] call placed | call_id:', result.call_id, '| remaining uncalled:', remaining);
+    console.log('[dial]', tenantId, '| call placed | call_id:', result.call_id, '| remaining uncalled:', remaining);
 
-    return res.status(200).json({
+    return {
+      tenant:             tenantId,
       status:             'called',
       call_id:            result.call_id,
       called:             lead.first_name + ' ' + lead.last_name + ' at ' + toNum,
       remaining_uncalled: remaining,
-    });
+    };
   } catch (err) {
-    console.error('[dial] unhandled error:', err.message);
-    return res.status(500).json({ error: err.message });
+    console.error('[dial]', tenantId, '| error:', err.message);
+    return { tenant: tenantId, status: 'error', error: err.message };
   }
 }

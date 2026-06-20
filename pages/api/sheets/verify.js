@@ -2,10 +2,12 @@ import { getSheetsClient, parseSheetId, getServiceAccountEmail, RO } from '../..
 const { verifyRequest, AuthError } = require('../../../lib/tenant-auth');
 
 
-const REQUIRED_HEADERS = ['phone_number', 'call_status'];
-// Recommended: first_name/last_name improve personalization; date_added enables
-// accurate per-cycle usage counting (auto-created by post-call.js after first call).
-const RECOMMENDED_HEADERS = ['first_name', 'last_name', 'date_added'];
+const REQUIRED_HEADERS = [
+  'first_name', 'last_name', 'phone_number', 'call_status',
+  'lead_source', 'original_interest', 'agent_name', 'transfer_number',
+];
+// date_added is auto-created by post-call.js on the first completed call.
+const RECOMMENDED_HEADERS = ['date_added'];
 
 export default async function handler(req, res) {
   let tenant;

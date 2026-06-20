@@ -1,9 +1,46 @@
+const crypto = require('crypto');
 const { getAllRows, batchWrite, colLetter, SHEET_TAB, getEffectiveSheetId } = require('../../lib/sheets');
 const { normalize } = require('../../lib/phone');
 
+export const config = { api: { bodyParser: false } };
+
+async function getRawBody(req) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    req.on('data', chunk => chunks.push(chunk));
+    req.on('end', () => resolve(Buffer.concat(chunks)));
+    req.on('error', reject);
+  });
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-  const body = req.body || {};
+
+  const rawBody = await getRawBody(req);
+
+  const webhookSecret = (process.env.RETELL_WEBHOOK_SECRET || '').trim();
+  if (webhookSecret) {
+    const signature = (req.headers['x-retell-signature-256t'] || '').trim();
+    const expected = crypto.createHmac('sha256', webhookSecret).update(rawBody).digest('hex');
+    let valid = false;
+    try {
+      const a = Buffer.from(signature, 'hex');
+      const b = Buffer.from(expected, 'hex');
+      valid = a.length > 0 && a.length === b.length && crypto.timingSafeEqual(a, b);
+    } catch { valid = false; }
+    if (!valid) {
+      console.warn('[post-call] rejected — invalid Retell webhook signature');
+      return res.status(401).json({ error: 'Invalid webhook signature' });
+    }
+  } else {
+    console.warn('[post-call] RETELL_WEBHOOK_SECRET not set — skipping signature verification');
+  }
+
+  let body;
+  try { body = JSON.parse(rawBody.toString('utf8')); } catch {
+    return res.status(400).json({ error: 'Invalid JSON body' });
+  }
+
   const event = body.event || '';
   console.log('[post-call] event:', event || '(none)');
   if (event === 'call_started') return res.status(200).json({ status: 'acknowledged' });
@@ -15,15 +52,17 @@ export default async function handler(req, res) {
   const analysis = call.call_analysis || {};
   const custom = analysis.custom_analysis_data || {};
   const rawPhone = call.to_number || call.from_number || '';
-  console.log('[post-call] call_id:', call.call_id || 'unknown', '| to:', call.to_number || 'none', '| disconnection_reason:', call.disconnection_reason || 'none');
+  const controlSheetId = call.retell_llm_dynamic_variables?.control_sheet_id || null;
+  console.log('[post-call] call_id:', call.call_id || 'unknown', '| to:', call.to_number || 'none', '| disconnection_reason:', call.disconnection_reason || 'none', '| controlSheetId:', controlSheetId ? controlSheetId.slice(0, 12) + '...' : 'from-env');
   if (!rawPhone) {
     console.log('[post-call] EARLY RETURN — no phone number in payload');
     return res.status(400).json({ error: 'No phone number in payload' });
   }
   const target = normalize(rawPhone);
   try {
-    const sheetId = await getEffectiveSheetId();
+    const sheetId = await getEffectiveSheetId(controlSheetId);
     const rows = await getAllRows(sheetId);
+    if (!rows || rows.length === 0) return res.status(404).json({ error: 'Sheet is empty' });
     const headers = rows[0];
     const phoneCol = headers.indexOf('phone_number');
     let sheetsRow = -1;

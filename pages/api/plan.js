@@ -1,4 +1,4 @@
-const { getProfile, getAllRows, SHEET_ID } = require('../../lib/sheets');
+const { getProfile, getAllRows } = require('../../lib/sheets');
 const { verifyRequest, AuthError } = require('../../lib/tenant-auth');
 
 const { buildPlanSummary } = require('../../lib/plan-config');

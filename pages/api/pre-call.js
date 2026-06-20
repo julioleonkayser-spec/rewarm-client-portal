@@ -1,17 +1,56 @@
+const crypto = require('crypto');
 const { getAllRows, getEffectiveSheetId } = require('../../lib/sheets');
 const { normalize }  = require('../../lib/phone');
 
+export const config = { api: { bodyParser: false } };
+
+async function getRawBody(req) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    req.on('data', chunk => chunks.push(chunk));
+    req.on('end', () => resolve(Buffer.concat(chunks)));
+    req.on('error', reject);
+  });
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-  const body = req.body || {};
+
+  const rawBody = await getRawBody(req);
+
+  const webhookSecret = (process.env.RETELL_WEBHOOK_SECRET || '').trim();
+  if (webhookSecret) {
+    const signature = (req.headers['x-retell-signature-256t'] || '').trim();
+    const expected = crypto.createHmac('sha256', webhookSecret).update(rawBody).digest('hex');
+    let valid = false;
+    try {
+      const a = Buffer.from(signature, 'hex');
+      const b = Buffer.from(expected, 'hex');
+      valid = a.length > 0 && a.length === b.length && crypto.timingSafeEqual(a, b);
+    } catch { valid = false; }
+    if (!valid) {
+      console.warn('[pre-call] rejected — invalid Retell webhook signature');
+      return res.status(401).json({ error: 'Invalid webhook signature' });
+    }
+  } else {
+    console.warn('[pre-call] RETELL_WEBHOOK_SECRET not set — skipping signature verification');
+  }
+
+  let body;
+  try { body = JSON.parse(rawBody.toString('utf8')); } catch {
+    return res.status(400).json({ error: 'Invalid JSON body' });
+  }
+
   const rawPhone = body.phone_number || body.to_number || body.from_number || '';
   if (!rawPhone) return res.status(400).json({ error: 'phone_number is required' });
   const target = normalize(rawPhone);
-  console.log('[pre-call] lookup for phone (normalized):', target);
+  const controlSheetId = body.retell_llm_dynamic_variables?.control_sheet_id || null;
+  console.log('[pre-call] lookup for phone (normalized):', target, '| controlSheetId:', controlSheetId ? controlSheetId.slice(0, 12) + '...' : 'from-env');
   try {
-    const sheetId = await getEffectiveSheetId();
+    const sheetId = await getEffectiveSheetId(controlSheetId);
     console.log('[pre-call] sheetId:', sheetId ? sheetId.slice(0, 12) + '...' : 'NULL');
     const rows = await getAllRows(sheetId);
+    if (!rows || rows.length === 0) return res.status(404).json({ error: 'Sheet is empty' });
     const headers = rows[0];
     const phoneCol = headers.indexOf('phone_number');
     for (let i = 1; i < rows.length; i++) {

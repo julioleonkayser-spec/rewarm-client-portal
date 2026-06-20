@@ -221,10 +221,11 @@ export default function Onboarding() {
                   Your agent calls leads straight from your Google Sheet, personalized to each one.
                 </p>
 
-                <div className="grid sm:grid-cols-2 gap-4">
+                <div className="grid sm:grid-cols-3 gap-4">
                   {[
-                    { label: 'View Pipeline', desc: 'See leads and call status', href: '/portal/crm', color: 'bg-amber-600 hover:bg-amber-700 text-white' },
-                    { label: 'See Dashboard', desc: 'Review call results live',  href: '/portal/dashboard', color: 'bg-stone-900 dark:bg-stone-800 hover:bg-stone-800 text-white' },
+                    { label: 'View Pipeline',    desc: 'See leads and call status',                                              href: '/portal/crm',       color: 'bg-amber-600 hover:bg-amber-700 text-white' },
+                    { label: 'See Dashboard',    desc: 'Review call results live',                                               href: '/portal/dashboard',  color: 'bg-stone-900 dark:bg-stone-800 hover:bg-stone-800 text-white' },
+                    { label: 'Start Your Agent', desc: 'Turn on your AI calling agent and start reaching leads automatically.',  href: '/portal/dialer',     color: 'bg-emerald-600 hover:bg-emerald-700 text-white' },
                   ].map(action => (
                     <a
                       key={action.label}
