@@ -2,11 +2,16 @@ const Retell = require('retell-sdk');
 const { getAllRows, getEffectiveSheetId } = require('../../lib/sheets');
 const { normalize }  = require('../../lib/phone');
 
+export const config = { api: { bodyParser: false } };
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   // Retell signs with RETELL_API_KEY — no separate webhook secret needed
-  const rawBody = JSON.stringify(req.body);
+  const chunks = [];
+  for await (const chunk of req) chunks.push(chunk);
+  const rawBody = Buffer.concat(chunks).toString('utf-8');
+  const body = JSON.parse(rawBody);
   const isValid = Retell.verify(
     rawBody,
     process.env.RETELL_API_KEY,
@@ -16,8 +21,6 @@ export default async function handler(req, res) {
     console.error('[webhook] Invalid Retell signature');
     return res.status(401).json({ error: 'Unauthorized' });
   }
-
-  const body = req.body;
 
   const rawPhone = body.phone_number || body.to_number || body.from_number || '';
   if (!rawPhone) return res.status(400).json({ error: 'phone_number is required' });

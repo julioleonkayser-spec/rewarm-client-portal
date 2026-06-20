@@ -80,6 +80,20 @@ async function patchVercelEnvVar(newValue) {
   return { ok: true, action: 'created' };
 }
 
+async function triggerVercelRedeploy() {
+  const token = process.env.VERCEL_TOKEN;
+  const projectId = process.env.VERCEL_PROJECT_ID;
+  if (!token || !projectId) return { ok: false, reason: 'Missing VERCEL_TOKEN or VERCEL_PROJECT_ID' };
+  const teamId = process.env.VERCEL_TEAM_ID || '';
+  const qs = teamId ? `?teamId=${encodeURIComponent(teamId)}` : '';
+  const res = await fetch(`https://api.vercel.com/v13/deployments${qs}`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: projectId, gitSource: { type: 'github', repoId: process.env.VERCEL_GITHUB_REPO_ID || '', ref: 'main' } }),
+  });
+  return res.ok ? { ok: true } : { ok: false, reason: `HTTP ${res.status}` };
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
@@ -132,6 +146,13 @@ export default async function handler(req, res) {
   const vercel = await patchVercelEnvVar(updatedMapJson);
   console.log('[admin/create-tenant] tenant:', tenantId, '| key:', accessKey, '| vercel:', vercel.ok ? vercel.action : vercel.reason);
 
+  let redeployTriggered = false;
+  if (vercel.ok) {
+    const redeploy = await triggerVercelRedeploy();
+    redeployTriggered = redeploy.ok;
+    if (!redeploy.ok) console.warn('[admin/create-tenant] redeploy failed:', redeploy.reason);
+  }
+
   const multiTenantEnabled = process.env.MULTI_TENANT === 'true';
 
   return res.status(200).json({
@@ -143,6 +164,7 @@ export default async function handler(req, res) {
     profileWritten,
     ...(profileError && { profileError }),
     vercelUpdated: vercel.ok,
+    redeployTriggered,
     ...(vercel.ok
       ? {
           message: 'Tenant created. Access key is active on the next cold start (~30 s). Share accessKey with the client.',

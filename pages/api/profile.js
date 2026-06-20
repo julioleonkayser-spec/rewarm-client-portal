@@ -12,6 +12,7 @@ const DEFAULT_PROFILE = {
   plan_name: '',
   billing_cycle_start: '',
   dataSheetId: '',
+  retell_agent_id: '',
   // legacy fields kept for existing stored profiles
   phone: '',
   website: '',

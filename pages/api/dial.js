@@ -3,6 +3,8 @@ const { getAllTenants } = require('../../lib/tenant-auth');
 const { buildPlanSummary } = require('../../lib/plan-config');
 const { toE164 } = require('../../lib/phone');
 
+const activeTenants = new Set();
+
 async function sendNoLeadsEmail(ownerEmail, leadCount) {
   const apiKey = (process.env.RESEND_API_KEY || '').trim();
   if (!apiKey) {
@@ -64,6 +66,13 @@ export default async function handler(req, res) {
 
 async function processTenant(tenant) {
   const { tenantId, controlSheetId } = tenant;
+
+  if (activeTenants.has(tenantId)) {
+    console.log('[dial]', tenantId, '| skipped — already processing');
+    return { tenant: tenantId, status: 'skipped_concurrent' };
+  }
+  activeTenants.add(tenantId);
+
   console.log('[dial]', tenantId, '| controlSheetId:', controlSheetId ? controlSheetId.slice(0, 12) + '...' : 'NULL');
 
   try {
@@ -119,7 +128,7 @@ async function processTenant(tenant) {
     const xfer  = toE164(lead.transfer_number);
 
     const retellKey   = process.env.RETELL_API_KEY;
-    const retellAgent = process.env.RETELL_AGENT_ID;
+    const retellAgent = profile?.retell_agent_id || process.env.RETELL_AGENT_ID;
     const retellFrom  = process.env.RETELL_FROM_NUMBER;
     if (!retellKey || !retellAgent || !retellFrom) {
       console.error('[dial]', tenantId, '| Retell env vars missing | RETELL_API_KEY:', !!retellKey, '| RETELL_AGENT_ID:', !!retellAgent, '| RETELL_FROM_NUMBER:', !!retellFrom);
@@ -170,5 +179,7 @@ async function processTenant(tenant) {
   } catch (err) {
     console.error('[dial]', tenantId, '| error:', err.message);
     return { tenant: tenantId, status: 'error', error: err.message };
+  } finally {
+    activeTenants.delete(tenantId);
   }
 }

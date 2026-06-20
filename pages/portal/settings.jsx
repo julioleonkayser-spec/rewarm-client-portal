@@ -200,6 +200,7 @@ function IntegrationsSection({ profile, onSaved }) {
   const [verifyState, setVerifyState] = useState(null);
   const [saveStatus, setSaveStatus] = useState('idle');
   const [saEmail, setSaEmail] = useState('');
+  const [retellAgentId, setRetellAgentId] = useState(profile?.retell_agent_id || '');
 
   useEffect(() => {
     sessionFetch('/api/sheets/data')
@@ -228,7 +229,7 @@ function IntegrationsSection({ profile, onSaved }) {
       const res = await sessionFetch('/api/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dataSheetId: verifyState?.sheetId || sheetInput }),
+        body: JSON.stringify({ dataSheetId: verifyState?.sheetId || sheetInput, retell_agent_id: retellAgentId }),
       });
       if (!res.ok) throw new Error('Save failed');
       setSaveStatus('saved');
@@ -328,10 +329,23 @@ function IntegrationsSection({ profile, onSaved }) {
         </div>
       </div>
 
+      {/* Retell Agent ID */}
+      <div className="space-y-2">
+        <label className="block text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wide">Retell Agent ID</label>
+        <input
+          type="text"
+          value={retellAgentId}
+          onChange={e => setRetellAgentId(e.target.value)}
+          placeholder="agent_xxxxxxxxxxxxxxxx"
+          className="w-full px-4 py-3 text-sm border border-stone-200 dark:border-stone-700 rounded-xl bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-shadow"
+        />
+        <p className="text-xs text-stone-400">Your cloned Retell agent ID. Leave blank to use the default shared agent.</p>
+      </div>
+
       <div className="flex justify-end pt-1">
         <button
           onClick={save}
-          disabled={!verifyState?.ok || saveStatus === 'saving'}
+          disabled={(!verifyState?.ok && !retellAgentId.trim()) || saveStatus === 'saving'}
           className={`px-5 py-2.5 text-sm font-semibold rounded-xl transition-all disabled:opacity-40 ${
             saveStatus === 'saved' ? 'bg-emerald-600 text-white' : 'bg-amber-600 hover:bg-amber-700 text-white'
           }`}
