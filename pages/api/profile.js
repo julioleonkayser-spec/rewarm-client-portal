@@ -31,13 +31,14 @@ export default async function handler(req, res) {
   }
   try {
     if (req.method === 'GET') {
+      res.setHeader('Cache-Control', 'no-store');
       const profile = await getProfile(tenant.controlSheetId);
       return res.status(200).json({ profile: profile || DEFAULT_PROFILE, isDefault: !profile });
     }
 
     if (req.method === 'PUT') {
       const incoming = req.body || {};
-      const SERVER_ONLY = ['plan_name', 'billing_cycle_start', 'dataSheetId', 'owner_email'];
+      const SERVER_ONLY = ['plan_name', 'billing_cycle_start', 'owner_email'];
       SERVER_ONLY.forEach(f => delete incoming[f]);
       const existing = (await getProfile(tenant.controlSheetId)) || DEFAULT_PROFILE;
       const merged = { ...existing, ...incoming };

@@ -209,6 +209,10 @@ function IntegrationsSection({ profile, onSaved }) {
       .catch(() => {});
   }, []);
 
+  useEffect(() => {
+    setSheetInput(profile?.dataSheetId || '');
+  }, [profile?.dataSheetId]);
+
   const verify = async () => {
     setVerifyState('loading');
     try {

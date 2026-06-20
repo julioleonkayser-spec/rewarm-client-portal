@@ -86,7 +86,7 @@ export default async function handler(req, res) {
     return res.status(err instanceof AuthError ? err.status : 401).json({ error: err.message || 'Unauthorized' });
   }
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
-  res.setHeader('Cache-Control', 's-maxage=30,stale-while-revalidate=59');
+  res.setHeader('Cache-Control', 'no-store');
 
   let sheetId;
   let profile = null;
