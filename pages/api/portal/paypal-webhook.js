@@ -14,7 +14,7 @@
 
 import crypto from 'crypto';
 import { Resend } from 'resend';
-const { exec, isConfigured } = require('../../lib/upstash');
+const { exec, isConfigured } = require('../../../lib/upstash');
 
 export const config = { api: { bodyParser: false } };
 
