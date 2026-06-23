@@ -53,6 +53,7 @@ export default async function handler(req, res) {
   }
   try {
     const sheetId = await getEffectiveSheetId(tenant.controlSheetId);
+    if (!sheetId) return res.status(200).json({ status: 'not_configured', leads: [] });
 
     if (req.method === 'GET') {
       const rows = await getAllRows(sheetId);

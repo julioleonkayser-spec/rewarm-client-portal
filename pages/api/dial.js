@@ -83,6 +83,11 @@ export default async function handler(req, res) {
 async function processTenant(tenant) {
   const { tenantId, controlSheetId } = tenant;
 
+  if (!controlSheetId) {
+    console.log('[dial]', tenantId, '| skipped — sheet not connected');
+    return { tenant: tenantId, status: 'sheet_not_configured' };
+  }
+
   if (activeTenants.has(tenantId)) {
     console.log('[dial]', tenantId, '| skipped — already processing');
     return { tenant: tenantId, status: 'skipped_concurrent' };
