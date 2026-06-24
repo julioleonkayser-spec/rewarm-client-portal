@@ -105,7 +105,7 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
-  const { email, name, controlSheetId, plan = 'Growth' } = req.body || {};
+  const { email, name, controlSheetId, plan = 'Growth', dataSheetId } = req.body || {};
   if (!controlSheetId) {
     return res.status(400).json({ error: 'controlSheetId is required' });
   }
@@ -131,6 +131,7 @@ export default async function handler(req, res) {
       name: name || '',
       plan_name: effectivePlan,
       billing_cycle_start: existing.billing_cycle_start || today,
+      ...(dataSheetId && { dataSheetId }),
     }, controlSheetId);
     profileWritten = true;
   } catch (err) {
@@ -147,10 +148,14 @@ export default async function handler(req, res) {
   console.log('[admin/create-tenant] tenant:', tenantId, '| key:', accessKey, '| vercel:', vercel.ok ? vercel.action : vercel.reason);
 
   let redeployTriggered = false;
+  let redeployWarning = null;
   if (vercel.ok) {
     const redeploy = await triggerVercelRedeploy();
     redeployTriggered = redeploy.ok;
-    if (!redeploy.ok) console.warn('[admin/create-tenant] redeploy failed:', redeploy.reason);
+    if (!redeploy.ok) {
+      redeployWarning = 'Auto-redeploy failed (' + redeploy.reason + '). TENANT_MAP was updated but the new tenant will NOT be active until you manually redeploy in the Vercel dashboard.';
+      console.warn('[admin/create-tenant] redeploy failed:', redeploy.reason);
+    }
   }
 
   const multiTenantEnabled = process.env.MULTI_TENANT === 'true';
@@ -167,8 +172,11 @@ export default async function handler(req, res) {
     redeployTriggered,
     ...(vercel.ok
       ? {
-          message: 'Tenant created. Access key is active on the next cold start (~30 s). Share accessKey with the client.',
+          message: redeployTriggered
+            ? 'Tenant created. Access key will be active after the triggered redeploy (~60s). Share accessKey with the client.'
+            : 'Tenant created and TENANT_MAP updated. MANUAL REDEPLOY REQUIRED before the access key is active. Go to Vercel dashboard → Deployments → Redeploy.',
           vercelAction: vercel.action,
+          ...(redeployWarning && { redeployWarning }),
         }
       : {
           message: 'Profile written but TENANT_MAP was NOT auto-updated. Add the entry manually in Vercel → Settings → Environment Variables.',
