@@ -36,6 +36,7 @@ async function sendNoLeadsEmail(ownerEmail, leadCount) {
 
 export default async function handler(req, res) {
   if (!['GET', 'POST'].includes(req.method)) return res.status(405).json({ error: 'Method not allowed' });
+  if (process.env.DIALER_GLOBAL_FREEZE === 'true') return res.status(200).json({ results: [], status: 'global_freeze' });
 
   const secret = (process.env.CRON_SECRET || '').trim();
   if (secret) {
